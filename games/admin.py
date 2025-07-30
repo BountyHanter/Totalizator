@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.db.models import Prefetch
 
 from games.models.bets import BetCoupon, BetVariant, SelectedOutcome
 from games.models.jackpot import Jackpot
@@ -33,15 +34,31 @@ class JackpotAdmin(admin.ModelAdmin):
 class SelectedOutcomeInline(admin.TabularInline):
     model = SelectedOutcome
     extra = 0
+    readonly_fields = ["match", "outcome", "result_icon"]
+    can_delete = False
+    show_change_link = False
 
+    def has_add_permission(self, request, obj=None):
+        return False
+
+@admin.register(BetVariant)
 class BetVariantAdmin(admin.ModelAdmin):
     inlines = [SelectedOutcomeInline]
+    list_display = ["id", "coupon_id", "matched_count", "win_amount", "is_win"]
+    list_select_related = ["coupon", "coupon__user", "coupon__round"]
+    list_per_page = 25
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         return qs.prefetch_related(
-            'selected',  # related_name в SelectedOutcome
-            'selected__match'  # чтобы матч не тянулся по отдельному запросу
+            Prefetch(
+                "selected",
+                queryset=SelectedOutcome.objects.select_related(
+                    "match__team1",
+                    "match__team2",
+                    "match__round"
+                )
+            )
         )
 
 class BetCouponAdmin(admin.ModelAdmin):
