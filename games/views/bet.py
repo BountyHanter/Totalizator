@@ -61,29 +61,38 @@ def bet(request):
             messages.error(request, "Не удалось сформировать варианты ставок.")
             return redirect("index")
 
-        # Создать купон
         total_amount = stake_per_variant * len(combinations)
 
         if user.balance_cached < total_amount:
             messages.error(request, "Недостаточно средств.")
             return redirect("index")
 
+        # Создать купон
         coupon = BetCoupon.objects.create(
-            user=request.user,
+            user=user,
             round=round,
             amount_total=total_amount,
             num_variants=len(combinations)
         )
 
-        # Создать варианты и выбранные исходы
-        for combo in combinations:
-            variant = BetVariant.objects.create(coupon=coupon)
+        # Подготовка вариантов
+        variant_objs = [BetVariant(coupon=coupon) for _ in combinations]
+        BetVariant.objects.bulk_create(variant_objs)
+
+        # Обновить список с id (если нужно), но Django 4+ с PostgreSQL сам подставит id
+        variant_objs = list(BetVariant.objects.filter(coupon=coupon).order_by("id"))
+
+        # Подготовка исходов
+        outcome_objs = []
+        for variant, combo in zip(variant_objs, combinations):
             for match_id, outcome_raw in combo:
-                SelectedOutcome.objects.create(
+                outcome_objs.append(SelectedOutcome(
                     variant=variant,
                     match_id=match_id,
                     outcome=OUTCOME_MAP[outcome_raw]
-                )
+                ))
+
+        SelectedOutcome.objects.bulk_create(outcome_objs)
 
         user.balance_cached -= total_amount
         user.save(update_fields=["balance_cached"])
