@@ -19,7 +19,11 @@ def stats_view(request):
         if d:
             qs = qs.filter(start_time__date=d)
 
-    rounds = qs.annotate(match_count=Count("matches"))
+    rounds = (
+        qs
+        .annotate(match_count=Count("matches"))
+        .order_by('-start_time')   # самые свежие первыми
+    )
 
     # --- Считаем, сколько юзер поставил/выиграл по каждому раунду ---
     user_staked = {}
