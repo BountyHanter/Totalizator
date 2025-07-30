@@ -10,6 +10,6 @@ class CustomUser(AbstractUser):
     balance_cached = models.DecimalField(
         max_digits=12,
         decimal_places=6,
-        default=0,
+        default=50_000,
         verbose_name="Кэш баланса"
     )

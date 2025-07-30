@@ -21,6 +21,7 @@ from django.urls import path
 from games.views.bet import bet
 from games.views.index import index
 from games.views.stats import stats_view, user_variants_partial, stats_round_partial
+from users.views.register import register_view
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -28,6 +29,8 @@ urlpatterns = [
     path("stats/", stats_view, name="stats"),
     path("login/", LoginView.as_view(), name="login"),
     path("logout/", LogoutView.as_view(next_page="index"), name="logout"),
+
+    path('register/', register_view, name='register'),
 
     path("bet/", bet, name="bet"),
 
