@@ -94,6 +94,19 @@ def bet(request):
 
         SelectedOutcome.objects.bulk_create(outcome_objs)
 
+        from django.db.models import Prefetch
+
+        variants = list(
+            BetVariant.objects.filter(coupon=coupon).prefetch_related(
+                Prefetch("selected", queryset=SelectedOutcome.objects.select_related("match"))
+            )
+        )
+
+        for variant in variants:
+            variant.matched_count = variant.calculate_matched_count()
+
+        BetVariant.objects.bulk_update(variants, ["matched_count"])
+
         user.balance_cached -= total_amount
         user.save(update_fields=["balance_cached"])
 

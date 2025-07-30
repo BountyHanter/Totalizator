@@ -73,6 +73,10 @@ class SelectedOutcome(models.Model):
         DRAW = "draw", "Ничья"
         WIN2 = "win2", "Победа 2"
 
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.select_related('match')  # обязательно!
+
     def is_correct(self) -> bool:
         """Вернёт True, если пользователь угадал исход."""
         return (

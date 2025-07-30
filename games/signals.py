@@ -21,13 +21,6 @@ def create_payout_categories(sender, **kwargs):
     # создать джекпот, если его ещё нет
     Jackpot.objects.get_or_create(id=1, defaults={'amount': 0})
 
-@receiver([post_save, post_delete], sender=SelectedOutcome)
-def update_matched_count(sender, instance, **kwargs):
-    variant = instance.variant
-    variant.matched_count = variant.calculate_matched_count()
-    variant.save(update_fields=['matched_count'])
-
-
 @receiver(post_save, sender=BetCoupon)
 def update_total_pool_on_create(sender, instance, created, **kwargs):
     if created:

@@ -37,6 +37,13 @@ class SelectedOutcomeInline(admin.TabularInline):
 class BetVariantAdmin(admin.ModelAdmin):
     inlines = [SelectedOutcomeInline]
 
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.prefetch_related(
+            'selected',  # related_name в SelectedOutcome
+            'selected__match'  # чтобы матч не тянулся по отдельному запросу
+        )
+
 class BetCouponAdmin(admin.ModelAdmin):
     list_display = ["id", "user", "round", "amount_total", "num_variants", "created_at"]
     readonly_fields = ["created_at"]
