@@ -10,9 +10,9 @@ from games.models.jackpot import Jackpot
 from games.models.payout import PayoutCategory
 from games.models.rounds import Round, RoundStats
 
-SELECTION_DURATION = 5
-CALCULATION_DURATION = 15
-PAYOUT_DURATION = 15
+SELECTION_DURATION = 180
+# CALCULATION_DURATION = 15
+# PAYOUT_DURATION = 15
 
 class Command(BaseCommand):
     help = "Проигрывание раунда"
@@ -44,7 +44,7 @@ class Command(BaseCommand):
         round.save(update_fields=["status"])
         log.info("Переводим в статус подсчёта")
 
-        calculation_start = time.monotonic()
+        # calculation_start = time.monotonic()
 
         round.refresh_from_db()
         payout_pool_raw = round.total_pool * Decimal("0.95")
@@ -64,15 +64,15 @@ class Command(BaseCommand):
 
         log.info(f"Выплаты - {win_payout}")
 
-        calculation_elapsed = time.monotonic() - calculation_start
-        calculation_sleep = max(0, CALCULATION_DURATION - calculation_elapsed)
-        time.sleep(calculation_sleep)
+        # calculation_elapsed = time.monotonic() - calculation_start
+        # calculation_sleep = max(0, CALCULATION_DURATION - calculation_elapsed)
+        # time.sleep(calculation_sleep)
 
         round.status = Round.Status.PAYOUT
         round.save(update_fields=["status"])
         log.info("Переводим в статус выплат")
 
-        payout_start = time.monotonic()
+        # payout_start = time.monotonic()
 
         winners_by_category = {}
 
@@ -131,9 +131,9 @@ class Command(BaseCommand):
                         f"по категории {key} (вариант #{variant.id})"
                     )
 
-        payout_elapsed = time.monotonic() - payout_start
-        payout_sleep = max(0, PAYOUT_DURATION - payout_elapsed)
-        time.sleep(payout_sleep)
+        # payout_elapsed = time.monotonic() - payout_start
+        # payout_sleep = max(0, PAYOUT_DURATION - payout_elapsed)
+        # time.sleep(payout_sleep)
 
         round.status = Round.Status.FINISHED
         round.end_time = timezone.now()

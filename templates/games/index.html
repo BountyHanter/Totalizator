@@ -83,10 +83,10 @@
       if (now >= deadline) {
         countdownEl.textContent = "Время вышло";
 
-        // Обновление каждые 5 сек
+        // Обновление каждые 15 сек
         setInterval(() => {
           location.reload();
-        }, 500000);
+        }, 15000);
 
         return;
       }
@@ -113,7 +113,7 @@
       // Таймера нет вообще — значит не стадия выбора
       setInterval(() => {
         location.reload();
-      }, 500000);
+      }, 15000);
     }
   })();
 </script>
