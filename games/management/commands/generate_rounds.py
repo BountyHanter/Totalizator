@@ -42,21 +42,28 @@ def generate_rounds():
 
 
 def generate_match(round: Round):
-    teams = Team.objects.filter(is_active=True).order_by("?")[:20]
+    teams = list(Team.objects.filter(is_active=True))
+    random.shuffle(teams)
 
-    for i in range(0, 20, 2):
+    if len(teams) < 2:
+        log.warning("Недостаточно активных команд для создания матчей.")
+        return
+
+    # Обрезаем список до чётного количества
+    if len(teams) % 2 != 0:
+        teams = teams[:-1]
+
+    for i in range(0, len(teams), 2):
         team1 = teams[i]
         team2 = teams[i + 1]
-
-        match_result: str = generate_match_result()
 
         Match.objects.create(
             round=round,
             team1=team1,
             team2=team2,
-            result=match_result
-
+            result=generate_match_result()
         )
+
 
 def generate_match_result() -> str:
     outcomes = [Match.Outcome.WIN_1, Match.Outcome.DRAW, Match.Outcome.WIN_2]
