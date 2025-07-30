@@ -1,0 +1,120 @@
+{% extends "games/base.html" %}
+
+{% block title %}Главная{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-9">
+        <div class="mb-4 jackpot">💰 Джекпот: {{ jackpot.amount }} $</div>
+
+        {% if matches %}
+            {% if round and round.status == "selection" %}
+              <div id="bet-timer" class="alert alert-info">
+                До конца приёма ставок: <span id="countdown"></span>
+              </div>
+            {% elif round %}
+              <div class="alert alert-warning">
+                Приём ставок закрыт — стадия: {{ round.get_status_display }}
+              </div>
+            {% endif %}
+            <form method="post" action="{% url 'bet' %}">
+              {% csrf_token %}
+              {% for match in matches %}
+                <div class="match-box">
+                  <div class="match-title">{{ match.team1.name }} — {{ match.team2.name }}</div>
+                  <div class="checkbox-group">
+                    {% for val, lab in outcome_choices %}
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="outcome_{{ match.id }}" value="{{ val }}"
+                               {% if round.status != 'selection' %}disabled{% endif %}>
+                        <label class="form-check-label">{{ lab }}</label>
+                      </div>
+                    {% endfor %}
+                  </div>
+                </div>
+              {% endfor %}
+
+              <div class="mb-3">
+                <label for="amount_total" class="form-label">Сумма ставки</label>
+                <input type="number" name="amount_total" id="amount_total" class="form-control" step="0.01" min="1"
+                       {% if round.status != 'selection' %}disabled{% endif %} required>
+              </div>
+
+              <button type="submit" class="btn btn-success"
+                      {% if round.status != 'selection' %}disabled{% endif %}>
+                Сделать ставку
+              </button>
+            </form>
+        {% else %}
+            <p>Нет доступных матчей для ставок.</p>
+        {% endif %}
+    </div>
+
+    <div class="col-md-3 right-panel">
+        {% if round %}
+            <h5>🎯 Пул: {{ total_pool }} $</h5>
+            <hr>
+            {% if payout_categories %}
+                <h6>📊 Распределение выигрышей</h6>
+                <ul class="list-unstyled">
+                    {% for cat in payout_categories %}
+                        <li>{{ cat.matched_count }} исходов — {{ cat.percent }}%</li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p>Нет активных категорий выплат</p>
+            {% endif %}
+        {% else %}
+            <p>Раунд не активен.</p>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+  (function () {
+    const countdownEl = document.getElementById("countdown");
+
+    // Если таймер есть
+    if (countdownEl) {
+      const startTimestamp = {{ start_timestamp }} * 1000;
+      const deadline = startTimestamp + 180 * 1000;
+      const now = Date.now();
+
+      if (now >= deadline) {
+        countdownEl.textContent = "Время вышло";
+
+        // Обновление каждые 5 сек
+        setInterval(() => {
+          location.reload();
+        }, 500000);
+
+        return;
+      }
+
+      function updateCountdown() {
+        const now = Date.now();
+        const diff = deadline - now;
+
+        if (diff <= 0) {
+          clearInterval(timerId);
+          countdownEl.textContent = "Время вышло";
+          setTimeout(() => location.reload(), 2000);
+          return;
+        }
+
+        const seconds = Math.floor(diff / 1000);
+        countdownEl.textContent = seconds + " сек.";
+      }
+
+      updateCountdown();
+      const timerId = setInterval(updateCountdown, 1000);
+
+    } else {
+      // Таймера нет вообще — значит не стадия выбора
+      setInterval(() => {
+        location.reload();
+      }, 500000);
+    }
+  })();
+</script>
+{% endblock %}

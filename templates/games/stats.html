@@ -1,0 +1,113 @@
+{% extends "games/base.html" %}
+{% load extras %}
+
+{% block title %}Статистика{% endblock %}
+{% block content %}
+<h3>📊 Статистика завершённых раундов</h3>
+
+<form method="get" class="mb-3">
+  <label for="date">Фильтр по дате старта:</label>
+  <input type="date" id="date" name="date" value="{{ selected_date }}">
+  <button type="submit" class="btn btn-sm btn-primary">Применить</button>
+  <a href="{% url 'stats' %}" class="btn btn-sm btn-secondary">Сброс</a>
+</form>
+
+<table class="table table-bordered table-striped">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Начало</th>
+      <th>Конец</th>
+      <th>Пул</th>
+      <th>Матчей</th>
+      <th>Поставлено</th>
+      <th>Выиграно</th>
+      <th>Подробнее</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in rounds %}
+      <tr>
+        <td>{{ r.id }}</td>
+        <td>{{ r.start_time|date:"d.m.Y H:i" }}</td>
+        <td>{{ r.end_time|date:"d.m.Y H:i" }}</td>
+        <td>{{ r.total_pool }} $</td>
+        <td>{{ r.match_count }}</td>
+        <td>{{ user_staked|get:r.id|default:"0.00" }} $</td>
+        <td>{{ user_won|get:r.id|default:"0.00" }} $</td>
+        <td>
+          {% if r.stats %}
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-primary"
+              data-bs-toggle="modal"
+              data-bs-target="#statsModal{{ r.id }}"
+            >
+              Открыть
+            </button>
+          {% else %}
+            —
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% for r in rounds %}
+  {% if r.stats %}
+    <!-- Модалка общей статистики -->
+    <div class="modal fade" id="statsModal{{ r.id }}" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Статистика раунда #{{ r.id }}</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div
+            class="modal-body"
+            id="statsModalBody{{ r.id }}"
+            hx-get="{% url 'stats_round_partial' r.id %}"
+            hx-trigger="revealed"
+            hx-target="this"
+            hx-swap="innerHTML"
+          >
+            <div class="text-center py-5">
+              <div class="spinner-border text-primary" role="status"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Модалка «Мои варианты» (пустой каркас, контент загрузится через HTMX) -->
+    <div class="modal fade" id="userVariantsModal{{ r.id }}" tabindex="-1"
+         aria-labelledby="userVariantsLabel{{ r.id }}" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="userVariantsLabel{{ r.id }}">
+              Мои варианты — раунд #{{ r.id }}
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div
+            class="modal-body"
+            id="userVariantsBody{{ r.id }}"
+            hx-get="{% url 'user_variants_partial' r.id %}"
+            hx-trigger="revealed"
+            hx-target="this"
+            hx-swap="innerHTML"
+          >
+            <div class="text-center py-5">
+              <div class="spinner-border text-primary" role="status"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+{% endfor %}
+
+<script src="https://unpkg.com/htmx.org@1.9.2"></script>
+{% endblock %}

@@ -1,0 +1,59 @@
+{% load extras %}
+
+<p><strong>Пул:</strong> {{ round.stats.total_pool }} $</p>
+<p><strong>Пул для выплат:</strong> {{ round.stats.payout_pool }} $</p>
+<p><strong>Джекпот до:</strong> {{ round.stats.jackpot_before }} $</p>
+<p><strong>Джекпот после:</strong> {{ round.stats.jackpot_after }} $</p>
+
+<h6 class="mt-4">🏆 Самый крупный выигрыш</h6>
+{% if max_data.best_win %}
+  <p>
+    <strong>{{ max_data.best_win }} $</strong>
+    (окупаемость: <strong>x{{ max_data.best_win_x }}</strong>)
+  </p>
+{% else %}
+  <p>Нет выигрышей</p>
+{% endif %}
+
+<h6 class="mt-3">🔥 Самый окупаемый вариант</h6>
+{% if max_data.best_x %}
+  <p>
+    <strong>x{{ max_data.best_x }}</strong>
+    (выигрыш: <strong>{{ max_data.best_x_win }} $</strong>)
+  </p>
+{% else %}
+  <p>Нет данных</p>
+{% endif %}
+
+<h6 class="mt-3">Победители по категориям:</h6>
+<table class="table table-sm table-bordered">
+  <thead>
+    <tr><th>Угадано</th><th>Выплата</th><th>Победителей</th></tr>
+  </thead>
+  <tbody>
+    {% for cat, data in winners.items %}
+      <tr>
+        <td>{{ cat }}</td>
+        <td>
+          {% with payouts|get:cat as pay %}
+            {{ pay|default:"—" }} $
+          {% endwith %}
+        </td>
+        <td>{{ data.count }}</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h6 class="mt-4">💼 Ваши ставки</h6>
+<p>Всего поставлено: <strong>{{ total_staked }} $</strong></p>
+<p>Всего выиграно: <strong>{{ total_won }} $</strong></p>
+
+<button
+  type="button"
+  class="btn btn-outline-primary mt-3"
+  data-bs-toggle="modal"
+  data-bs-target="#userVariantsModal{{ round.id }}"
+>
+  Мои варианты
+</button>

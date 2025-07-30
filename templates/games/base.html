@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Totalizator{% endblock %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+        rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.2"></script>
+    <style>
+        .match-box {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            background-color: #f8f9fa;
+        }
+        .match-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        .checkbox-group {
+            display: flex;
+            gap: 1rem;
+        }
+        .jackpot {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        .right-panel {
+            border-left: 1px solid #ccc;
+            padding-left: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div id="messages-container" class="position-fixed top-0 start-0 p-3" style="z-index: 1055;">
+      {% if messages %}
+        {% for message in messages %}
+          <div class="toast align-items-center text-bg-{{ message.tags }} border-0 mb-2" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="3000">
+            <div class="d-flex">
+              <div class="toast-body">
+                {{ message }}
+              </div>
+              <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Закрыть"></button>
+            </div>
+          </div>
+        {% endfor %}
+      {% endif %}
+    </div>
+    <div class="d-flex justify-content-end mb-3 align-items-center gap-2">
+        <a href="{% url 'index' %}" class="btn btn-outline-success btn-sm">Ставки</a>
+        <a href="{% url 'stats' %}" class="btn btn-outline-info btn-sm">История</a>
+
+        {% if user.is_authenticated %}
+            <span class="me-2">👤 {{ user.username }} || Баланс {{ user.balance_cached }}</span>
+            <form method="post" action="{% url 'logout' %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-secondary btn-sm">Выйти</button>
+            </form>
+        {% else %}
+            <a href="{% url 'login' %}" class="btn btn-outline-primary btn-sm">Войти</a>
+        {% endif %}
+    </div>
+    <div class="container my-4">
+        {% block content %}{% endblock %}
+    </div>
+</body>
+<script>
+  window.addEventListener('load', () => {
+    const toastElements = document.querySelectorAll('.toast');
+    toastElements.forEach(el => {
+      const toast = new bootstrap.Toast(el);
+      toast.show();
+    });
+  });
+</script>
+</html>

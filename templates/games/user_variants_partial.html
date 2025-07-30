@@ -1,0 +1,22 @@
+{% for coupon in coupons %}
+  <div class="mb-4 p-3 border rounded">
+    <h6>Купон #{{ coupon.id }} — {{ coupon.created_at|date:"d.m.Y H:i" }}</h6>
+    <p>Сумма: {{ coupon.amount_total }} $ / вариантов: {{ coupon.num_variants }}</p>
+    {% for variant in coupon.variants.all %}
+      <div class="mb-2">
+        <strong>Вариант #{{ variant.id }} — {{ variant.matched_count }} совп.</strong>
+        <ul>
+          {% for sel in variant.selected.all %}
+            <li>
+              {{ sel.match.team1 }} — {{ sel.match.team2 }}:
+              {% if sel.outcome == sel.Outcome.WIN1 %}П1{% elif sel.outcome == sel.Outcome.DRAW %}Ничья{% else %}П2{% endif %}
+              {{ sel.result_icon }}
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endfor %}
+  </div>
+{% empty %}
+  <p>У вас нет вариантов для этого раунда.</p>
+{% endfor %}
