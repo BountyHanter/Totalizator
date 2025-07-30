@@ -66,4 +66,4 @@ class BetCouponAdmin(admin.ModelAdmin):
     readonly_fields = ["created_at"]
 
 admin.site.register(BetCoupon, BetCouponAdmin)
-admin.site.register(BetVariant, BetVariantAdmin)
+# admin.site.register(BetVariant, BetVariantAdmin)
