@@ -43,17 +43,15 @@ def generate_rounds():
 
 def generate_match(round: Round):
     teams = list(Team.objects.filter(is_active=True))
-    random.shuffle(teams)
 
-    if len(teams) < 2:
-        log.warning("Недостаточно активных команд для создания матчей.")
+    if len(teams) < 20:
+        log.warning("Недостаточно активных команд для 10 матчей (нужно минимум 20).")
         return
 
-    # Обрезаем список до чётного количества
-    if len(teams) % 2 != 0:
-        teams = teams[:-1]
+    random.shuffle(teams)
+    teams = teams[:20]  # используем только 20 случайных команд
 
-    for i in range(0, len(teams), 2):
+    for i in range(0, 20, 2):
         team1 = teams[i]
         team2 = teams[i + 1]
 
