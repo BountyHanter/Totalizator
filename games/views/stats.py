@@ -22,7 +22,7 @@ def stats_view(request):
     rounds = (
         qs
         .annotate(match_count=Count("matches"))
-        .order_by('-start_time')   # самые свежие первыми
+        .order_by('-start_time')[:300]
     )
 
     # --- Считаем, сколько юзер поставил/выиграл по каждому раунду ---
