@@ -15,28 +15,24 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.contrib.auth.views import LoginView, LogoutView
-from django.urls import path
+from django.urls import path, include
 
-from games.views.bet import bet
-from games.views.index import index
-from games.views.stats import stats_view, user_variants_partial, stats_round_partial
-from users.views.register import register_view
+from config.utils.get_csrf import get_csrf_token
+from users.views.auth import UserLoginAPIView, LogoutAPIView
+from users.views.register import AutoRegisterLoginAPIView
+from users.views.user_Info import UserProfileAPIView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path("", index, name="index"),
-    path("stats/", stats_view, name="stats"),
-    path("login/", LoginView.as_view(), name="login"),
-    path("logout/", LogoutView.as_view(next_page="index"), name="logout"),
+    path('auth/login/', UserLoginAPIView.as_view()),
+    path('auth/logout/', LogoutAPIView.as_view()),
+    path('auth/register/', AutoRegisterLoginAPIView.as_view()),
 
-    path('register/', register_view, name='register'),
+    path('api/v1/csrf/', get_csrf_token),
+    path('api/v1/', include([
+        path('games/', include('games.urls')),
+        path('profile/', UserProfileAPIView.as_view()),
 
-    path("bet/", bet, name="bet"),
-
-    path("round/<int:round_id>/user-variants/", user_variants_partial, name="user_variants_partial"),
-
-    path("stats/round/<int:round_id>/", stats_round_partial, name="stats_round_partial"),
-    path("stats/round/<int:round_id>/variants/", user_variants_partial, name="user_variants_partial"),
+    ])),
 
 ]

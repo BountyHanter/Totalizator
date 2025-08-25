@@ -13,10 +13,6 @@ class PayoutCategory(models.Model):
     )
     percent = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     active = models.BooleanField(default=True)
-    order = models.PositiveSmallIntegerField(default=0)
-
-    class Meta:
-        ordering = ['order']
 
     def clean(self):
         total = sum(

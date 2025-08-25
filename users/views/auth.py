@@ -60,6 +60,7 @@ class UserLoginAPIView(APIView):
                 "last_login": localtime(user.last_login).isoformat() if user.last_login else None,
                 "is_staff": user.is_staff,
                 "is_superuser": user.is_superuser,
+                "balance_cached": user.balance_cached
             }
 
             return Response({'message': 'Удачная авторизация.', "user_data": user_data },

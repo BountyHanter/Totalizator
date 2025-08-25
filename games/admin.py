@@ -6,6 +6,7 @@ from games.models.jackpot import Jackpot
 from games.models.matchs import Match
 from games.models.payout import PayoutCategory
 from games.models.rounds import Round, RoundStats
+from games.models.wins import BiggestWin
 
 
 @admin.register(PayoutCategory)
@@ -66,4 +67,16 @@ class BetCouponAdmin(admin.ModelAdmin):
     readonly_fields = ["created_at"]
 
 admin.site.register(BetCoupon, BetCouponAdmin)
-# admin.site.register(BetVariant, BetVariantAdmin)
+
+@admin.register(BiggestWin)
+class BiggestWinAdmin(admin.ModelAdmin):
+    def has_add_permission(self, request):
+        # Запретить создание новой записи, если одна уже есть
+        return not BiggestWin.objects.exists()
+
+    def changelist_view(self, request, extra_context=None):
+        # Вместо списка — сразу форма редактирования единственной записи
+        obj = BiggestWin.objects.first()
+        if obj:
+            return self.change_view(request, str(obj.pk))
+        return super().changelist_view(request, extra_context=extra_context)

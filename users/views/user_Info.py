@@ -10,7 +10,8 @@ User = get_user_model()  # Вот ключевой момент
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'date_joined', 'last_login', 'is_staff', 'is_superuser']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'date_joined',
+                  'last_login', 'is_staff', 'is_superuser', 'balance_cached',]
 
 
 class UserProfileAPIView(APIView):

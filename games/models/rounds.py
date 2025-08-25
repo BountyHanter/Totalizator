@@ -17,7 +17,7 @@ class Round(models.Model):
         default=Status.SELECTION
     )
     total_pool = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    game_hash = models.CharField(max_length=128, blank=True)
+    game_hash = models.CharField(max_length=128, blank=True, null=True)
 
     def __str__(self):
         return f"Раунд {self.id}"
@@ -34,6 +34,7 @@ class RoundStats(models.Model):
     jackpot_after = models.DecimalField(max_digits=12, decimal_places=2)
 
     winners_by_category = models.JSONField(default=dict)
+    biggest_win_x = models.DecimalField(max_digits=6, decimal_places=2, default=0)
 
 
     def __str__(self):

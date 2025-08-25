@@ -1,15 +1,14 @@
 from itertools import product
 from decimal import Decimal
 
-from django.contrib import messages
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import render, redirect
-from django.views.decorators.http import require_http_methods
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import ValidationError, NotFound
 
-from games.models.bets import BetCoupon, BetVariant, SelectedOutcome
-from games.models.jackpot import Jackpot
-from games.models.payout import PayoutCategory
 from games.models.rounds import Round
+from games.models.bets import BetCoupon, BetVariant, SelectedOutcome
+
 
 OUTCOME_MAP = {
     "1": SelectedOutcome.Outcome.WIN1,
@@ -17,72 +16,77 @@ OUTCOME_MAP = {
     "2": SelectedOutcome.Outcome.WIN2,
 }
 
-@require_http_methods(["GET", "POST"])
-def bet(request):
-    user = request.user
-    jackpot = Jackpot.objects.first()
-    round = Round.objects.filter(status=Round.Status.SELECTION).first()
-    matches = round.matches.select_related('team1', 'team2') if round else []
-    payout_categories = PayoutCategory.objects.filter(active=True).order_by("order")
 
-    if request.method == "POST":
-        if not request.user.is_authenticated:
-            return redirect("login")
+class PlaceBetView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+
+        # входные данные
+        round_id = request.data.get("round_id")
+        stake_per_variant = request.data.get("stake_per_variant")
+        predictions = request.data.get("predictions")
+
+        # базовые проверки
+        if not round_id or not stake_per_variant or not predictions:
+            raise ValidationError("Не все обязательные поля переданы.")
 
         try:
-            stake_per_variant = Decimal(request.POST.get("amount_total", "0"))
+            stake_per_variant = Decimal(stake_per_variant)
         except:
-            stake_per_variant = Decimal("0")
+            raise ValidationError("Ставка должна быть числом.")
 
         if stake_per_variant <= 0:
-            messages.error(request, "Сумма ставки должна быть положительной.")
-            return redirect("index")
+            raise ValidationError("Ставка на вариант должна быть положительной.")
 
-        # Собрать выборы по матчам
-        match_outcomes = {}
-        for match in matches:
-            values = request.POST.getlist(f"outcome_{match.id}")
-            valid = [v for v in values if v in OUTCOME_MAP]
-            if valid:
-                match_outcomes[match.id] = valid
+        # проверяем раунд
+        try:
+            round_obj = Round.objects.get(id=round_id, status=Round.Status.SELECTION)
+        except Round.DoesNotExist:
+            raise ValidationError("Нет доступного раунда для ставок.")
 
-        if len(match_outcomes) != 10:
-            messages.error(request, "Необходимо выбрать хотя бы один исход в каждом из 10 матчей.")
-            return redirect("index")
+        # проверяем количество матчей
+        if len(predictions) != 10:
+            raise ValidationError("Необходимо выбрать исходы во всех 10 матчах.")
 
-        # Построить варианты
-        grouped = [
-            [(match_id, outcome) for outcome in outcomes]
-            for match_id, outcomes in match_outcomes.items()
-        ]
+        # строим комбинации
+        grouped = []
+        for match_id, outcomes in predictions.items():
+            if not outcomes:
+                raise ValidationError(f"Матч {match_id}: нужно выбрать хотя бы один исход.")
+            valid = [o for o in outcomes if o in OUTCOME_MAP]
+            if not valid:
+                raise ValidationError(f"Матч {match_id}: некорректные исходы.")
+            grouped.append([(int(match_id), outcome) for outcome in valid])
+
         combinations = list(product(*grouped))
-
         if not combinations:
-            messages.error(request, "Не удалось сформировать варианты ставок.")
-            return redirect("index")
+            raise ValidationError("Не удалось сформировать варианты ставок.")
 
-        total_amount = stake_per_variant * len(combinations)
+        num_variants = len(combinations)
+        total_amount = stake_per_variant * num_variants
 
+        # проверяем баланс
         if user.balance_cached < total_amount:
-            messages.error(request, "Недостаточно средств.")
-            return redirect("index")
+            raise ValidationError("Недостаточно средств для ставки.")
 
-        # Создать купон
+        # создаём купон
         coupon = BetCoupon.objects.create(
             user=user,
-            round=round,
+            round=round_obj,
             amount_total=total_amount,
-            num_variants=len(combinations)
+            num_variants=num_variants
         )
 
-        # Подготовка вариантов
+        # создаём варианты
         variant_objs = [BetVariant(coupon=coupon) for _ in combinations]
         BetVariant.objects.bulk_create(variant_objs)
 
-        # Обновить список с id (если нужно), но Django 4+ с PostgreSQL сам подставит id
+        # получаем созданные варианты
         variant_objs = list(BetVariant.objects.filter(coupon=coupon).order_by("id"))
 
-        # Подготовка исходов
+        # создаём исходы
         outcome_objs = []
         for variant, combo in zip(variant_objs, combinations):
             for match_id, outcome_raw in combo:
@@ -91,31 +95,13 @@ def bet(request):
                     match_id=match_id,
                     outcome=OUTCOME_MAP[outcome_raw]
                 ))
-
         SelectedOutcome.objects.bulk_create(outcome_objs)
 
-        from django.db.models import Prefetch
-
-        variants = list(
-            BetVariant.objects.filter(coupon=coupon).prefetch_related(
-                Prefetch("selected", queryset=SelectedOutcome.objects.select_related("match"))
-            )
-        )
-
-        for variant in variants:
-            variant.matched_count = variant.calculate_matched_count()
-
-        BetVariant.objects.bulk_update(variants, ["matched_count"])
-
+        # списываем баланс
         user.balance_cached -= total_amount
         user.save(update_fields=["balance_cached"])
 
-        messages.success(request, f"Ставка успешно сделана! Кол-во вариантов: {len(combinations)}.")
-        return redirect("index")
-
-    return render(request, "games/index.html", {
-        "jackpot": jackpot,
-        "round": round,
-        "matches": matches,
-        "payout_categories": payout_categories,
-    })
+        return Response({
+            "status": "ok",
+            "balance_left": str(user.balance_cached)
+        })
