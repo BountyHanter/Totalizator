@@ -19,6 +19,7 @@ from django.urls import path, include
 
 from config.utils.get_csrf import get_csrf_token
 from users.views.auth import UserLoginAPIView, LogoutAPIView
+from users.views.color import ColorIntervalListView
 from users.views.register import AutoRegisterLoginAPIView
 from users.views.user_Info import UserProfileAPIView
 
@@ -34,5 +35,7 @@ urlpatterns = [
         path('profile/', UserProfileAPIView.as_view()),
 
     ])),
+
+    path("colors/", ColorIntervalListView.as_view()),
 
 ]
