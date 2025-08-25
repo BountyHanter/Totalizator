@@ -13,8 +13,7 @@ def create_payout_categories(sender, **kwargs):
             matched_count=i,
             defaults={
                 'percent': 0,
-                'active': i >= 6,  # включены 6-10
-                'order': i
+                'active': i >= 6
             }
         )
 
