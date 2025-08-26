@@ -1,5 +1,5 @@
 from django.db.models import QuerySet
-from rest_framework.exceptions import NotFound
+from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.generics import RetrieveAPIView, ListAPIView
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
@@ -12,7 +12,7 @@ from games.serializers import RoundSerializer, BetCouponShortSerializer, RoundHi
 
 class CurrentRoundView(RetrieveAPIView):
     serializer_class = RoundSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def get_object(self):
         obj = Round.objects.filter(
@@ -29,7 +29,7 @@ class CurrentRoundView(RetrieveAPIView):
 
 
 class CurrentRoundPoolView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def get(self, request):
         # TODO: попробовать достать значение из Redis
@@ -59,7 +59,7 @@ TRUTHY = {"1", "true", "t", "yes", "y", "on"}
 
 class LastBetCouponsView(ListAPIView):
     serializer_class = BetCouponShortSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     DEFAULT_LIMIT = 5
     MAX_LIMIT = 100
@@ -101,6 +101,8 @@ class LastBetCouponsView(ListAPIView):
         )
 
         if self._parse_is_me():
+            if not self.request.user.is_authenticated:
+                raise PermissionDenied("Требуется авторизация для is_me=true")
             qs = qs.filter(user=self.request.user)
 
         return qs[: self._parse_limit()]

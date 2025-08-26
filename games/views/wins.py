@@ -3,7 +3,7 @@ from datetime import timedelta
 from django.db.models import Sum
 from django.utils import timezone
 from rest_framework.generics import ListAPIView, RetrieveAPIView
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 
 from games.models.bets import BetCoupon
@@ -13,7 +13,7 @@ from games.serializers import BiggestWinSerializer, BetCouponTopSerializer
 
 class BiggestWinView(RetrieveAPIView):
     serializer_class = BiggestWinSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def get_object(self):
         # всегда возвращаем единственную запись
@@ -22,7 +22,7 @@ class BiggestWinView(RetrieveAPIView):
 
 class TopWinningCouponsView(ListAPIView):
     serializer_class = BetCouponTopSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def list(self, request, *args, **kwargs):
         # TODO: достать из Redis

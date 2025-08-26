@@ -1,5 +1,5 @@
 from rest_framework.generics import ListAPIView
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny
 
 from games.models.payout import PayoutCategory
 from games.serializers import PayoutCategorySerializer
@@ -7,7 +7,7 @@ from games.serializers import PayoutCategorySerializer
 
 class PayoutCategoryListView(ListAPIView):
     serializer_class = PayoutCategorySerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def get_queryset(self):
         # отдаем только активные
