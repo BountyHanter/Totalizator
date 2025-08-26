@@ -85,5 +85,5 @@ class AutoRegisterLoginAPIView(APIView):
             status=status.HTTP_201_CREATED
         )
         csrf = get_token(request)
-        resp.set_cookie("csrftoken", csrf, httponly=False, samesite="Lax")  # подправь флаги под прод
+        resp.set_cookie("csrftoken", csrf, max_age=31449600, httponly=False, samesite="None", secure=True)
         return resp

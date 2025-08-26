@@ -12,7 +12,7 @@ services:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "6020:5432"
+      - "6021:5432"
 
     volumes:
       - pgdata:/var/lib/postgresql/data
