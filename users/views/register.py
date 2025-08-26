@@ -10,6 +10,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from config.utils.jwt_token import get_tokens_for_user
 from config.utils.logging_templates import log_warning, log_info
 
 User = get_user_model()
@@ -37,7 +38,10 @@ class AutoRegisterLoginAPIView(APIView):
             if not User.objects.filter(username=username).exists():
                 break
         else:
-            log_warning(action="Авто-регистрация", message="Не удалось сгенерировать уникальный username")
+            log_warning(
+                action="Авто-регистрация",
+                message="Не удалось сгенерировать уникальный username"
+            )
             return Response({"error": "Попробуйте позже."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
         # 2) Сгенерировать пароль
@@ -46,22 +50,33 @@ class AutoRegisterLoginAPIView(APIView):
         # 3) Создать пользователя
         user = User(username=username)
         user.set_password(password)
-        # Если у модели есть обязательные поля — заполни их здесь (email и т.п.)
         user.save()
 
-        log_info(action="Авто-регистрация", message="Пользователь создан", username=username, user_id=user.id)
+        log_info(
+            action="Авто-регистрация",
+            message="Пользователь создан",
+            username=username,
+            user_id=user.id
+        )
 
-        # 4) Аутентифицировать и залогинить (создаст sessionid cookie)
+        # 4) Проверим, что аутентифицируется
         auth_user = authenticate(request, username=username, password=password)
         if auth_user is None or not auth_user.is_active:
-            log_warning(action="Авто-логин", message="Не удалось аутентифицировать сразу после создания", username=username)
+            log_warning(
+                action="Авто-логин",
+                message="Не удалось аутентифицировать сразу после создания",
+                username=username
+            )
             return Response({"error": "Auth failed."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        auth_login(request, auth_user)
-        log_info(action="Авто-логин", message="Успешный вход", username=username, user_id=user.id)
+        log_info(
+            action="Авто-логин",
+            message="Успешный вход",
+            username=username,
+            user_id=user.id
+        )
 
-        # 5) Сформировать user_data как в твоей авторизации
-        user = auth_user  # для краткости
+        # 5) Данные пользователя
         user_data = {
             "id": user.id,
             "username": user.username,
@@ -75,15 +90,14 @@ class AutoRegisterLoginAPIView(APIView):
             "balance_cached": getattr(user, "balance_cached", 0),
         }
 
-        # 6) Ответ + куки. sessionid выставится автоматически.
-        # Положим CSRF, чтобы фронт мог сразу слать POST-ы с X-CSRFToken при сессионной аутентификации.
-        resp = Response(
+        # 6) Создаём JWT
+        tokens = get_tokens_for_user(user)
+
+        return Response(
             {
                 "message": "ok",
                 "user_data": user_data,
+                "tokens": tokens
             },
             status=status.HTTP_201_CREATED
         )
-        csrf = get_token(request)
-        resp.set_cookie("csrftoken", csrf, max_age=31449600, httponly=False, samesite="None", secure=True)
-        return resp

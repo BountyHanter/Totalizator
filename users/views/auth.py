@@ -6,6 +6,7 @@ from rest_framework.response import Response
 from rest_framework import status, permissions
 from django.contrib.auth import authenticate, login as auth_login, logout, get_user_model
 
+from config.utils.jwt_token import get_tokens_for_user
 from config.utils.logging_templates import log_warning, log_info
 
 logger = logging.getLogger(__name__)
@@ -42,14 +43,12 @@ class UserLoginAPIView(APIView):
 
         user = authenticate(request, username=username, password=password)
         if user is not None:
-            auth_login(request, user)
             log_info(
                 action='Попытка входа',
                 message='Успешный вход',
                 username=username
             )
 
-            # Формируем ответ с данными пользователя
             user_data = {
                 "id": user.id,
                 "username": user.username,
@@ -63,27 +62,32 @@ class UserLoginAPIView(APIView):
                 "balance_cached": user.balance_cached
             }
 
-            return Response({'message': 'Удачная авторизация.', "user_data": user_data },
-                            status=status.HTTP_200_OK)
+            tokens = get_tokens_for_user(user)
+
+            return Response({
+                'message': 'Удачная авторизация.',
+                "user_data": user_data,
+                "tokens": tokens
+            }, status=status.HTTP_200_OK)
         else:
             log_warning(
                 action='Попытка входа',
-                message='Не верный пароль',
+                message='Неверный пароль',
                 username=username
             )
             return Response({'error': 'Неверный логин или пароль.'},
                             status=status.HTTP_400_BAD_REQUEST)
 
-
 class LogoutAPIView(APIView):
     def post(self, request, *args, **kwargs):
-        logout(request)
         username = request.user.username if request.user.is_authenticated else 'Anonymous'
         log_info(
-            action='Попытка выхода',
-            message='Успешный logout',
+            action='Выход',
+            message='JWT logout (токены клиент сам удаляет)',
             username=username
         )
-        logger.info(f"Попытка выхода",
-                    extra={"username": username, "action": 'logout', 'status': 'success'})
-        return Response({"detail": "Успешный логаут"}, status=status.HTTP_200_OK)
+        logger.info(
+            "JWT logout",
+            extra={"username": username, "action": 'logout', 'status': 'success'}
+        )
+        return Response({"detail": "Токены удалены на клиенте."}, status=status.HTTP_200_OK)
