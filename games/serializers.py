@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from games.models.bets import BetCoupon
+from games.models.bets import BetCoupon, BetVariant
 from games.models.matchs import Match
 from games.models.payout import PayoutCategory
 from games.models.rounds import Round
@@ -54,12 +54,19 @@ class RoundSerializer(serializers.ModelSerializer):
         return jackpot.amount if jackpot else None
 
 
-class BetCouponShortSerializer(serializers.ModelSerializer):
-    username = serializers.CharField(source="user.username")
+class BetVariantSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source="coupon.user.username")
+    bet_amount = serializers.SerializerMethodField()
 
     class Meta:
-        model = BetCoupon
-        fields = ["id", "amount_total", "username"]
+        model = BetVariant
+        fields = ["id", "username", "bet_amount", "win_amount", "win_multiplier"]
+
+    def get_bet_amount(self, obj):
+        try:
+            return obj.coupon.amount_total / obj.coupon.num_variants
+        except ZeroDivisionError:
+            return 0
 
 
 ######### ИСТОРИЯ

@@ -30,6 +30,7 @@ class BetVariant(models.Model):
     coupon = models.ForeignKey(BetCoupon, related_name="variants", on_delete=models.CASCADE)
     matched_count = models.PositiveSmallIntegerField(default=0)
     win_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    win_multiplier = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     is_win = models.BooleanField(default=False)
 
     def __str__(self):

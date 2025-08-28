@@ -1,13 +1,13 @@
 from django.db.models import QuerySet
 from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.generics import RetrieveAPIView, ListAPIView
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from games.models.bets import BetCoupon
+from games.models.bets import BetCoupon, BetVariant
 from games.models.rounds import Round
-from games.serializers import RoundSerializer, BetCouponShortSerializer, RoundHistorySerializer
+from games.serializers import RoundSerializer, RoundHistorySerializer, BetVariantSerializer
 
 
 class CurrentRoundView(RetrieveAPIView):
@@ -57,53 +57,36 @@ class CurrentRoundPoolView(APIView):
 
 TRUTHY = {"1", "true", "t", "yes", "y", "on"}
 
-class LastBetCouponsView(ListAPIView):
-    serializer_class = BetCouponShortSerializer
+class LastBetVariantsView(ListAPIView):
+    serializer_class = BetVariantSerializer
     permission_classes = [AllowAny]
 
     DEFAULT_LIMIT = 5
     MAX_LIMIT = 100
 
-    def _parse_limit(self) -> int:
+    def _parse_limit(self):
         raw = self.request.query_params.get("limit", self.DEFAULT_LIMIT)
         try:
             value = int(raw)
         except (TypeError, ValueError):
             value = self.DEFAULT_LIMIT
-        value = max(1, min(self.MAX_LIMIT, value))
-        return value
+        return max(1, min(self.MAX_LIMIT, value))
 
-    def _parse_is_me(self) -> bool:
+    def _parse_is_me(self):
         raw = self.request.query_params.get("is_me", "false")
-        return str(raw).strip().lower() in TRUTHY
+        return str(raw).strip().lower() in {"1", "true", "yes", "on"}
 
-    def get_queryset(self) -> QuerySet:
-        current_round = (
-            Round.objects.filter(
-                status__in=[
-                    Round.Status.SELECTION,
-                    Round.Status.CALCULATION,
-                    Round.Status.PAYOUT,
-                ]
-            )
-            .order_by("-id")
-            .first()
-        )
-        if not current_round:
-            # Можно вернуть пустой список, но для явности кидаем 404
-            raise NotFound("Нет активного раунда")
-
+    def get_queryset(self):
         qs = (
-            BetCoupon.objects.filter(round=current_round)
-            .select_related("user")
-            .only("id", "amount_total", "user__first_name")
+            BetVariant.objects
+            .select_related("coupon__user", "coupon")
             .order_by("-id")
         )
 
         if self._parse_is_me():
             if not self.request.user.is_authenticated:
                 raise PermissionDenied("Требуется авторизация для is_me=true")
-            qs = qs.filter(user=self.request.user)
+            qs = qs.filter(coupon__user=self.request.user)
 
         return qs[: self._parse_limit()]
 
