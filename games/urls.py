@@ -4,11 +4,11 @@ from games.views.bet import PlaceBetView
 from games.views.payout import PayoutCategoryListView
 from games.views.rounds import CurrentRoundView, CurrentRoundPoolView, RoundHistoryView, \
     LastBetVariantsView
-from games.views.wins import BiggestWinView, TopWinningCouponsView
+from games.views.wins import BiggestWinView, TopWinningVariantsView
 
 urlpatterns = [
     path("biggest-win/", BiggestWinView.as_view()),
-    path("top_10_win/", TopWinningCouponsView.as_view()),
+    path("top_10_win/", TopWinningVariantsView.as_view()),
     path("payout-categories/", PayoutCategoryListView.as_view()),
     path('current_round/', include([
         path('', CurrentRoundView.as_view()),

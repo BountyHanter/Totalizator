@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from games.models.bets import BetCoupon, BetVariant
+from games.models.bets import BetVariant
 from games.models.matchs import Match
 from games.models.payout import PayoutCategory
 from games.models.rounds import Round
@@ -14,13 +14,17 @@ class BiggestWinSerializer(serializers.ModelSerializer):
         fields = ["amount", "updated_at"]
 
 
-class BetCouponTopSerializer(serializers.ModelSerializer):
-    username = serializers.CharField(source="user.username")
-    total_win = serializers.DecimalField(max_digits=12, decimal_places=2)
+class BetVariantTopSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source="coupon.user.username")
+    bet_amount = serializers.SerializerMethodField()
 
     class Meta:
-        model = BetCoupon
-        fields = ["id", "username", "total_win", "created_at"]
+        model = BetVariant
+        fields = ["id", "username", "bet_amount", "win_amount", "win_multiplier"]
+
+    def get_bet_amount(self, obj):
+        return obj.coupon.bet_amount
+
 
 
 ######### ПРОЦЕНТ ВЫПЛАТ
