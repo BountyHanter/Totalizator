@@ -47,15 +47,28 @@ class MatchSerializer(serializers.ModelSerializer):
 class RoundSerializer(serializers.ModelSerializer):
     matches = MatchSerializer(many=True, read_only=True)
     jackpot = serializers.SerializerMethodField()
+    total_pool = serializers.SerializerMethodField()
 
     class Meta:
         model = Round
-        fields = ["id", "status", "total_pool", "start_time", "end_time", "matches", "jackpot"]
+        fields = [
+            "id",
+            "status",
+            "total_pool",
+            "start_time",
+            "selection_end_time",
+            "matches",
+            "jackpot",
+        ]
 
     def get_jackpot(self, obj):
-        from games.models.jackpot import Jackpot  # импорт внутри, чтобы избежать циклов
-        jackpot = Jackpot.objects.first()
-        return jackpot.amount if jackpot else None
+        from games.models.jackpot import Jackpot
+        jp = Jackpot.objects.first()
+        return jp.amount if jp else None
+
+    def get_total_pool(self, obj):
+        stats = getattr(obj, "stats", None)
+        return stats.total_pool if stats else None
 
 
 class BetVariantSerializer(serializers.ModelSerializer):

@@ -32,27 +32,28 @@ class CurrentRoundPoolView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        # TODO: попробовать достать значение из Redis
-        # pool = redis_client.get("current_round_pool")
-        # if pool:
-        #     return Response({"total_pool": pool})
-
-        # если нет в Redis — достаём из БД
-        round_obj = Round.objects.filter(
-            status__in=[
-                Round.Status.SELECTION,
-                Round.Status.CALCULATION,
-                Round.Status.PAYOUT,
-            ]
-        ).order_by("-id").values("id", "total_pool").first()
+        round_obj = (
+            Round.objects
+            .filter(
+                status__in=[
+                    Round.Status.SELECTION,
+                    Round.Status.CALCULATION,
+                    Round.Status.PAYOUT,
+                ]
+            )
+            .order_by("-id")
+            .values("id", "stats__total_pool")   # берём пул из RoundStats
+            .first()
+        )
 
         if not round_obj:
             raise NotFound("Нет активного раунда")
 
-        # TODO: сохранить в Redis на будущее
-        # redis_client.set("current_round_pool", round_obj["total_pool"])
-
-        return Response(round_obj)
+        # переименуем ключ, чтобы было красиво
+        return Response({
+            "id": round_obj["id"],
+            "total_pool": round_obj["stats__total_pool"],
+        })
 
 
 TRUTHY = {"1", "true", "t", "yes", "y", "on"}

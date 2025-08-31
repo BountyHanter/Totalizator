@@ -10,13 +10,13 @@ class Round(models.Model):
         FINISHED = 'finished', 'Завершён'
 
     start_time = models.DateTimeField(null=True, blank=True)
+    selection_end_time = models.DateTimeField(null=True, blank=True)
     end_time = models.DateTimeField(null=True, blank=True)
     status = models.CharField(
         max_length=20,
         choices=Status.choices,
         default=Status.SELECTION
     )
-    total_pool = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     game_hash = models.CharField(max_length=128, blank=True, null=True)
 
     def __str__(self):
@@ -32,9 +32,11 @@ class RoundStats(models.Model):
     payout_pool = models.DecimalField(max_digits=12, decimal_places=2)
     jackpot_before = models.DecimalField(max_digits=12, decimal_places=2)
     jackpot_after = models.DecimalField(max_digits=12, decimal_places=2)
+    total_win = models.DecimalField(max_digits=12, decimal_places=2)
 
     winners_by_category = models.JSONField(default=dict)
     biggest_win_x = models.DecimalField(max_digits=6, decimal_places=2, default=0)
+    biggest_win_sum = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 
 
     def __str__(self):
