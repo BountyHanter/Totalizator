@@ -55,11 +55,18 @@ class PlaceBetView(APIView):
         for match_id, outcomes in predictions.items():
             if not outcomes:
                 raise ValidationError(f"Матч {match_id}: нужно выбрать хотя бы один исход.")
-            valid = [o for o in outcomes if o in OUTCOME_MAP]
+
+            seen = set()
+            valid = []
+            for o in outcomes:
+                if o in OUTCOME_MAP and o not in seen:
+                    valid.append(o)
+                    seen.add(o)
+
             if not valid:
                 raise ValidationError(f"Матч {match_id}: некорректные исходы.")
-            grouped.append([(int(match_id), outcome) for outcome in valid])
 
+            grouped.append([(int(match_id), outcome) for outcome in valid])
         combinations = list(product(*grouped))
         if not combinations:
             raise ValidationError("Не удалось сформировать варианты ставок.")

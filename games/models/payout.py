@@ -1,6 +1,7 @@
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.db.models import Q
 
 
 class PayoutCategory(models.Model):
@@ -20,3 +21,15 @@ class PayoutCategory(models.Model):
         ) + self.percent
         if total > 100:
             raise ValidationError("Суммарный процент не может превышать 100%")
+
+    class Meta:
+        indexes = [
+            # Частый паттерн: filter(active=True).order_by('matched_count')
+            # Частичный индекс ускоряет только активные категории.
+            # Требуется PostgreSQL (Django поддерживает condition начиная с 3.2).
+            models.Index(
+                fields=["matched_count"],
+                name="payout_active_matched_idx",
+                condition=Q(active=True),
+            ),
+        ]

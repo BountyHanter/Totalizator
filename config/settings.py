@@ -10,7 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -106,8 +106,18 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticated',
     ),
     # 'EXCEPTION_HANDLER': 'config.utils.exceptions.custom_exception_handler',
+    # "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    # "PAGE_SIZE": 100,  # сколько объектов возвращать на страницу по умолчанию
     "DATETIME_FORMAT": "%Y-%m-%dT%H:%M:%S.%f%z",
     "USE_TZ": True,
+}
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=1),   # сколько живёт access
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=30),      # сколько живёт refresh
+    "ROTATE_REFRESH_TOKENS": False,
+    "BLACKLIST_AFTER_ROTATION": True,  # роли не играет, если rotate=False
+
 }
 
 # Cross-Origin Resource Sharing (CORS)

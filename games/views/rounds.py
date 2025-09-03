@@ -1,13 +1,15 @@
-from django.db.models import QuerySet
+from django.db.models import QuerySet, Prefetch
+from rest_framework import status
 from rest_framework.exceptions import NotFound, PermissionDenied
-from rest_framework.generics import RetrieveAPIView, ListAPIView
-from rest_framework.permissions import AllowAny
+from rest_framework.generics import RetrieveAPIView, ListAPIView, get_object_or_404
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from games.models.bets import BetCoupon, BetVariant
+from games.models.bets import BetCoupon, BetVariant, SelectedOutcome
 from games.models.rounds import Round
-from games.serializers import RoundSerializer, RoundHistorySerializer, BetVariantSerializer
+from games.serializers import RoundSerializer, RoundHistorySerializer, BetVariantSerializer, RoundStatsSerializer, \
+    UserBetVariantSerializer
 
 
 class CurrentRoundView(RetrieveAPIView):
@@ -42,17 +44,16 @@ class CurrentRoundPoolView(APIView):
                 ]
             )
             .order_by("-id")
-            .values("id", "stats__total_pool")   # берём пул из RoundStats
+            .values("id", "live_pool")   # ⚡ теперь берём из Round
             .first()
         )
 
         if not round_obj:
             raise NotFound("Нет активного раунда")
 
-        # переименуем ключ, чтобы было красиво
         return Response({
             "id": round_obj["id"],
-            "total_pool": round_obj["stats__total_pool"],
+            "live_pool": round_obj["live_pool"],   # возвращаем живой пул
         })
 
 
@@ -106,8 +107,59 @@ class RoundHistoryView(ListAPIView):
         qs = (
             Round.objects.filter(status=Round.Status.FINISHED)
             .select_related("stats")
-            .only("id", "stats__biggest_win_x")
             .order_by("-id")[:limit]
         )
 
+        return qs
+
+
+class RoundStatsView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, pk):
+        round_obj = get_object_or_404(Round.objects.select_related("stats"), pk=pk)
+
+        if round_obj.status != Round.Status.FINISHED:
+            return Response({"status": "Раунд не завершён"}, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = RoundStatsSerializer(round_obj.stats)
+        return Response({
+            "round": {"id": round_obj.id, "status": round_obj.status},
+            **serializer.data
+        })
+
+
+class MyVariantsInRoundView(ListAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = UserBetVariantSerializer
+
+    def get_queryset(self):
+        round_id = self.kwargs["pk"]
+        try:
+            round_obj = Round.objects.only("id").get(pk=round_id)
+        except Round.DoesNotExist:
+            raise NotFound("Раунд не найден")
+
+        # Все варианты текущего пользователя в этом раунде
+        qs = (
+            BetVariant.objects
+            .filter(coupon__round=round_obj, coupon__user=self.request.user)
+            .select_related("coupon")  # для bet_amount
+            .prefetch_related(
+                Prefetch(
+                    "selected",
+                    queryset=SelectedOutcome.objects.select_related(
+                        "match", "match__team1", "match__team2"
+                    ).only(
+                        "id", "outcome",
+                        "match__id", "match__result",
+                        "match__team1__name", "match__team2__name",
+                    )
+                )
+            )
+            .only(
+                "id", "matched_count", "win_amount", "win_multiplier", "is_win",
+                "coupon__amount_total", "coupon__num_variants",
+            )
+        )
         return qs

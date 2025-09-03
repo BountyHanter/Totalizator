@@ -12,6 +12,12 @@ class Round(models.Model):
     start_time = models.DateTimeField(null=True, blank=True)
     selection_end_time = models.DateTimeField(null=True, blank=True)
     end_time = models.DateTimeField(null=True, blank=True)
+    live_pool = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        help_text="Текущий пул ставок (живой, обновляется при создании купонов)"
+    )
     status = models.CharField(
         max_length=20,
         choices=Status.choices,
@@ -21,6 +27,12 @@ class Round(models.Model):
 
     def __str__(self):
         return f"Раунд {self.id}"
+
+    class Meta:
+        indexes = [
+            # Уже покрывает CurrentRoundView / CurrentRoundPoolView / RoundHistoryView
+            models.Index(fields=["status", "-id"], name="round_status_id_desc"),
+        ]
 
 
 class RoundStats(models.Model):
@@ -34,9 +46,10 @@ class RoundStats(models.Model):
     jackpot_after = models.DecimalField(max_digits=12, decimal_places=2)
     total_win = models.DecimalField(max_digits=12, decimal_places=2)
 
-    winners_by_category = models.JSONField(default=dict)
-    biggest_win_x = models.DecimalField(max_digits=6, decimal_places=2, default=0)
-    biggest_win_sum = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    count_winners_by_category = models.JSONField(default=dict)
+    payout_by_category = models.JSONField(default=dict)
+    best_multiplier = models.JSONField(default=dict)
+    biggest_win = models.JSONField(default=dict)
 
 
     def __str__(self):

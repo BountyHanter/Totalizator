@@ -14,4 +14,4 @@ class BiggestWin(models.Model):
         raise ValidationError("Удаление запрещено. Разрешено только обновление записи.")
 
     def __str__(self):
-        return f"Самый большой выигрыш за день: {self.amount}"
+        return f"Самый большой выигрыш за неделю: {self.amount}"

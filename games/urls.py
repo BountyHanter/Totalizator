@@ -3,7 +3,7 @@ from django.urls import path, include
 from games.views.bet import PlaceBetView
 from games.views.payout import PayoutCategoryListView
 from games.views.rounds import CurrentRoundView, CurrentRoundPoolView, RoundHistoryView, \
-    LastBetVariantsView
+    LastBetVariantsView, RoundStatsView, MyVariantsInRoundView
 from games.views.wins import BiggestWinView, TopWinningVariantsView
 
 urlpatterns = [
@@ -16,6 +16,10 @@ urlpatterns = [
     ])),
     path('variants/', LastBetVariantsView.as_view()),
     path('history/', RoundHistoryView.as_view()),
+
+    path("<int:pk>/stats/", RoundStatsView.as_view()),
+
+    path("<int:pk>/my-variants/", MyVariantsInRoundView.as_view()),
 
     path('bet/', PlaceBetView.as_view()),
 

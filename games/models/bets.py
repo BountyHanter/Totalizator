@@ -11,7 +11,7 @@ User = get_user_model()
 
 class BetCoupon(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    round = models.ForeignKey(Round, on_delete=models.CASCADE)
+    round = models.ForeignKey(Round, on_delete=models.CASCADE, related_name="coupons")
     amount_total = models.DecimalField(max_digits=10, decimal_places=2)
     num_variants = models.PositiveIntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
@@ -25,6 +25,15 @@ class BetCoupon(models.Model):
             return self.amount_total / self.num_variants
         except (ZeroDivisionError, DivisionByZero):
             return Decimal("0.00")
+
+    class Meta:
+        indexes = [
+            # Быстрые выборки последних купонов пользователя
+            models.Index(fields=["user", "id"], name="coupon_user_id_idx"),
+            # Для выборок купонов пользователя в конкретном раунде (MyVariantsInRoundView)
+            models.Index(fields=["round", "user", "id"], name="coupon_round_user_id_idx"),
+        ]
+
 
 class BetVariant(models.Model):
     coupon = models.ForeignKey(BetCoupon, related_name="variants", on_delete=models.CASCADE)
@@ -45,24 +54,22 @@ class BetVariant(models.Model):
         matched = 0
         outcomes = self.selected.select_related('match').all()
 
-        # print(f"\n[DEBUG] Вариант #{self.pk} — подсчёт совпадений:")
         for outcome in outcomes:
             selected = outcome.outcome
             expected = outcome_mapping.get(selected)
             actual = outcome.match.result
 
-            # print(f"  Матч {outcome.match}:")
-            # print(f"    Выбран: {selected} => {expected}")
-            # print(f"    Результат матча: {actual}")
-
             if actual and expected == actual:
-                # print("    ✅ Совпадение")
                 matched += 1
-        #     else:
-        #         print("    ❌ Нет совпадения")
-        #
-        # print(f"[DEBUG] Итого совпадений: {matched}\n")
         return matched
+
+    class Meta:
+        indexes = [
+            # Выплаты: фильтр по купонам раунда + отсечение по matched_count
+            models.Index(fields=["coupon", "matched_count"], name="variant_coupon_matched_idx"),
+            # «Последние варианты» по купону/пользователю (для order_by -id / limit)
+            models.Index(fields=["coupon", "id"], name="variant_coupon_id_idx"),
+        ]
 
 
 class SelectedOutcome(models.Model):
@@ -93,3 +100,8 @@ class SelectedOutcome(models.Model):
     def __str__(self):
         return f"{self.match}: {self.outcome}"
 
+    class Meta:
+        constraints = [
+            # Страховка от дублей: один матч на вариант — один раз
+            models.UniqueConstraint(fields=["variant", "match"], name="uniq_variant_match"),
+        ]

@@ -1,79 +1,46 @@
 import random
-import time
-import uuid
-
 from django.core.management.base import BaseCommand
-
-from games.management.commands.logger import log
-from games.models.matchs import Match
 from games.models.rounds import Round
+from games.models.matchs import Match
 from teams.models.teams import Team
 
 MAX_ROUNDS = 8
-NEW_ROUNDS = []
+MATCHES_PER_ROUND = 10
+
 
 class Command(BaseCommand):
-    help = "Генерация будущих раундов (до 8 штук вперёд)"
+    help = "Поддерживает до 8 будущих раундов (создаёт новые раунды и матчи)"
 
     def handle(self, *args, **options):
-        generate_rounds()
+        future_cnt = Round.objects.exclude(status=Round.Status.FINISHED).count()
+        need = max(0, MAX_ROUNDS - future_cnt)
 
-        for round in NEW_ROUNDS:
-            generate_match(round)
+        if need == 0:
+            self.stdout.write("Достаточно раундов, новые не нужны.")
+            return
 
+        # создаём недостающие раунды
+        new_rounds = [Round(status=Round.Status.WAITING) for _ in range(need)]
+        Round.objects.bulk_create(new_rounds, batch_size=need)
 
-def generate_rounds():
-    # Считаем количество ещё не отыгравших (не FINISHED) раундов
-    future_rounds_count = Round.objects.exclude(status=Round.Status.FINISHED).count()
-    log.info(f"Активных/ожидающих раундов: {future_rounds_count}")
+        # достаём их обратно (bulk_create не проставляет id в списке)
+        created_rounds = list(
+            Round.objects.filter(status=Round.Status.WAITING).order_by("-id")[:need]
+        )[::-1]
 
-    # Берём последний по ID (т.е. последний созданный)
-    last_round = Round.objects.order_by('-id').first()
-    log.info(f"Последний раунд: {last_round}")
+        teams = list(Team.objects.filter(is_active=True))
+        if len(teams) < MATCHES_PER_ROUND * 2:
+            self.stdout.write("Недостаточно активных команд для генерации матчей.")
+            return
 
-    for i in range(1, (MAX_ROUNDS - future_rounds_count) + 1):
-        round = Round.objects.create(
-            status=Round.Status.WAITING,
-            game_hash=generate_uuid_hash()
-        )
+        for round_obj in created_rounds:
+            random.shuffle(teams)
+            selected = teams[: MATCHES_PER_ROUND * 2]
 
-        NEW_ROUNDS.append(round)
-        log.info(f"Создан раунд {i} (id={round.id})")
+            matches = [
+                Match(round=round_obj, team1=selected[i], team2=selected[i + 1])
+                for i in range(0, len(selected), 2)
+            ]
+            Match.objects.bulk_create(matches, batch_size=MATCHES_PER_ROUND)
 
-
-def generate_match(round: Round):
-    teams = list(Team.objects.filter(is_active=True))
-
-    if len(teams) < 20:
-        log.warning("Недостаточно активных команд для 10 матчей (нужно минимум 20).")
-        return
-
-    random.shuffle(teams)
-    teams = teams[:20]  # используем только 20 случайных команд
-
-    for i in range(0, 20, 2):
-        team1 = teams[i]
-        team2 = teams[i + 1]
-
-        Match.objects.create(
-            round=round,
-            team1=team1,
-            team2=team2,
-            result=generate_match_result()
-        )
-
-
-def generate_match_result() -> str:
-    outcomes = [Match.Outcome.WIN_1, Match.Outcome.DRAW, Match.Outcome.WIN_2]
-    weights = [34, 33, 33]  # 34% для одной из опций
-
-    # Рандомно переставим веса, чтобы каждый раз разная опция была 34%
-    random.shuffle(weights)
-
-    # Выбираем результат с учётом рандомных весов
-    result = random.choices(outcomes, weights=weights, k=1)[0]
-    return result
-
-
-def generate_uuid_hash():
-    return uuid.uuid5(uuid.NAMESPACE_DNS, str(time.time())).hex
+        self.stdout.write(f"Создано {need} раундов и по {MATCHES_PER_ROUND} матчей в каждом.")
