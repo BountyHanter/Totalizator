@@ -19,6 +19,8 @@ def process_payouts(round_obj: Round):
     Выплаты и финализация раунда.
     Обновляет варианты, балансы и пишет RoundStats.
     """
+    round_obj.refresh_from_db()
+
     jackpot = _get_or_create_jackpot()
     jackpot_before = jackpot.amount
 
