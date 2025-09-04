@@ -50,6 +50,18 @@ class PlaceBetView(APIView):
         if len(predictions) != 10:
             raise ValidationError("Необходимо выбрать исходы во всех 10 матчах.")
 
+        # Собираем матчи
+        valid_matches = set(round_obj.matches.values_list("id", flat=True))
+
+        for match_id, outcomes in predictions.items():
+            try:
+                match_id = int(match_id)
+            except ValueError:
+                raise ValidationError(f"Некорректный match_id: {match_id}")
+
+            if match_id not in valid_matches:
+                raise ValidationError(f"Матч {match_id} не относится к этому раунду.")
+
         # строим комбинации
         grouped = []
         for match_id, outcomes in predictions.items():
