@@ -23,6 +23,6 @@ urlpatterns = [
 
     path('bet/', PlaceBetView.as_view()),
 
-    path('my-win_coupon/', MyWinCouponView.as_view()),
+    path('my-win-coupon/', MyWinCouponView.as_view()),
 
 ]
