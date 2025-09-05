@@ -13,7 +13,10 @@ class BetCoupon(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     round = models.ForeignKey(Round, on_delete=models.CASCADE, related_name="coupons")
     amount_total = models.DecimalField(max_digits=10, decimal_places=2)
+    win_amount_total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     num_variants = models.PositiveIntegerField()
+    is_seen = models.BooleanField(default=True)
+    is_winner = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

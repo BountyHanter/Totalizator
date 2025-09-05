@@ -5,7 +5,7 @@ from collections import defaultdict
 from django.utils import timezone
 from django.db.models import Sum
 
-from games.models.bets import BetVariant
+from games.models.bets import BetVariant, BetCoupon
 from games.models.jackpot import Jackpot
 from games.models.payout import PayoutCategory
 from games.models.rounds import Round, RoundStats
@@ -49,6 +49,7 @@ def process_payouts(round_obj: Round):
     payout_by_category_dec = {str(c.matched_count): Decimal("0.00") for c in categories}
 
     variant_acc = {}  # pk -> {"win_sum": Decimal, "bet": Decimal, "is_win": bool}
+    coupon_map = defaultdict(Decimal)  # coupon_id -> сумма выигрыша
     user_balance_delta = defaultdict(Decimal)
     total_win = Decimal("0.00")
 
@@ -108,6 +109,11 @@ def process_payouts(round_obj: Round):
             total_win += payout
             payout_by_category_dec[str(key)] = (payout_by_category_dec[str(key)] + payout).quantize(Decimal("0.01"))
 
+            # >>> ДОБАВЛЯЕМ В КУПОН <<<
+            coupon_acc = coupon_map.setdefault(v.coupon_id, Decimal("0.00"))
+            coupon_acc += payout
+            coupon_map[v.coupon_id] = coupon_acc
+
     # ===== обновление вариантов
     if variant_acc:
         variant_ids = list(variant_acc.keys())
@@ -137,6 +143,32 @@ def process_payouts(round_obj: Round):
                 biggest_win = {"sum": win_amount_f, "x": win_mult_f}
 
         BetVariant.objects.bulk_update(variant_map.values(), ["win_amount", "win_multiplier", "is_win"])
+
+        # получаем все купоны раунда
+        coupons = list(BetCoupon.objects.filter(round=round_obj))
+
+        # обновляем win_amount_total, is_winner
+        for c in coupons:
+            total = coupon_map.get(c.id, Decimal("0.00"))
+            c.win_amount_total = total.quantize(Decimal("0.01"))
+            c.is_winner = total > 0
+            c.is_seen = True  # по умолчанию считаем «уведомлённым»
+
+        # находим лучший купон для каждого юзера
+        best_by_user = {}
+        for c in coupons:
+            if not c.is_winner:
+                continue
+            if c.user_id not in best_by_user or c.win_amount_total > best_by_user[c.user_id].win_amount_total:
+                best_by_user[c.user_id] = c
+
+        # отмечаем лучший купон у каждого юзера как «не просмотренный»
+        for c in best_by_user.values():
+            c.is_seen = False
+
+        # массово сохраняем
+        BetCoupon.objects.bulk_update(coupons, ["win_amount_total", "is_winner", "is_seen"])
+
     else:
         best_multiplier = {"x": 0.00, "sum": 0.00}
         biggest_win = {"sum": 0.00, "x": 0.00}

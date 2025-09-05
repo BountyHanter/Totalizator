@@ -4,7 +4,7 @@ from games.views.bet import PlaceBetView
 from games.views.payout import PayoutCategoryListView
 from games.views.rounds import CurrentRoundView, CurrentRoundPoolView, RoundHistoryView, \
     LastBetVariantsView, RoundStatsView, MyVariantsInRoundView
-from games.views.wins import BiggestWinView, TopWinningVariantsView
+from games.views.wins import BiggestWinView, TopWinningVariantsView, MyWinCouponView
 
 urlpatterns = [
     path("biggest-win/", BiggestWinView.as_view()),
@@ -22,5 +22,7 @@ urlpatterns = [
     path("<int:pk>/my-variants/", MyVariantsInRoundView.as_view()),
 
     path('bet/', PlaceBetView.as_view()),
+
+    path('my-win_coupon/', MyWinCouponView.as_view()),
 
 ]

@@ -82,13 +82,15 @@ class LastBetVariantsView(ListAPIView):
         qs = (
             BetVariant.objects
             .select_related("coupon__user", "coupon")
-            .order_by("-id")
         )
 
         if self._parse_is_me():
             if not self.request.user.is_authenticated:
                 raise PermissionDenied("Требуется авторизация для is_me=true")
-            qs = qs.filter(coupon__user=self.request.user)
+
+            qs = qs.filter(coupon__user=self.request.user).order_by("-matched_count", "-id")
+        else:
+            qs = qs.order_by("-id")
 
         return qs[: self._parse_limit()]
 
