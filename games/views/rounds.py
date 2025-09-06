@@ -60,7 +60,7 @@ class CurrentRoundPoolView(APIView):
 TRUTHY = {"1", "true", "t", "yes", "y", "on"}
 
 class LastBetVariantsView(ListAPIView):
-    serializer_class = BetVariantSerializer  # переопределим ниже
+    serializer_class = BetVariantSerializer
     permission_classes = [AllowAny]
 
     DEFAULT_LIMIT = 5
@@ -79,9 +79,14 @@ class LastBetVariantsView(ListAPIView):
         return str(raw).strip().lower() in {"1", "true", "yes", "on"}
 
     def _current_round_id(self):
-        # «текущий» — последний по id
-        rid = Round.objects.order_by("-id").values_list("id", flat=True).first()
-        return rid
+        obj = (
+            Round.objects
+            .filter(status__in=[Round.Status.SELECTION, Round.Status.CALCULATION, Round.Status.PAYOUT])
+            .order_by("-id")
+            .values_list("id", flat=True)
+            .first()
+        )
+        return obj  # может быть None
 
     def get_queryset(self):
         current_round_id = self._current_round_id()
@@ -103,7 +108,7 @@ class LastBetVariantsView(ListAPIView):
 
         qs = qs[: self._parse_limit()]
 
-        # навешиваем порядковый номер (1..N) в текущей выборке
+        # нумерация 1..N для текущей выборки
         for idx, obj in enumerate(qs, start=1):
             obj.position = idx
         return qs
