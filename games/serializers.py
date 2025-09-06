@@ -66,20 +66,21 @@ class RoundSerializer(serializers.ModelSerializer):
         return jp.amount if jp else None
 
 
+
 class BetVariantSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source="coupon.user.username")
     bet_amount = serializers.SerializerMethodField()
+    position = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = BetVariant
-        fields = ["id", "username", "bet_amount", "win_amount", "win_multiplier"]
+        fields = ["position", "username", "bet_amount", "win_amount", "win_multiplier"]
 
     def get_bet_amount(self, obj):
         try:
             return obj.coupon.amount_total / obj.coupon.num_variants
         except ZeroDivisionError:
             return 0
-
 
 ######### ИСТОРИЯ
 class RoundHistorySerializer(serializers.ModelSerializer):

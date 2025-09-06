@@ -60,7 +60,7 @@ class CurrentRoundPoolView(APIView):
 TRUTHY = {"1", "true", "t", "yes", "y", "on"}
 
 class LastBetVariantsView(ListAPIView):
-    serializer_class = BetVariantSerializer
+    serializer_class = BetVariantSerializer  # переопределим ниже
     permission_classes = [AllowAny]
 
     DEFAULT_LIMIT = 5
@@ -78,22 +78,35 @@ class LastBetVariantsView(ListAPIView):
         raw = self.request.query_params.get("is_me", "false")
         return str(raw).strip().lower() in {"1", "true", "yes", "on"}
 
+    def _current_round_id(self):
+        # «текущий» — последний по id
+        rid = Round.objects.order_by("-id").values_list("id", flat=True).first()
+        return rid
+
     def get_queryset(self):
+        current_round_id = self._current_round_id()
+        if current_round_id is None:
+            return BetVariant.objects.none()
+
         qs = (
             BetVariant.objects
             .select_related("coupon__user", "coupon")
+            .filter(coupon__round_id=current_round_id)
         )
 
         if self._parse_is_me():
             if not self.request.user.is_authenticated:
                 raise PermissionDenied("Требуется авторизация для is_me=true")
-
             qs = qs.filter(coupon__user=self.request.user).order_by("-matched_count", "-id")
         else:
             qs = qs.order_by("-id")
 
-        return qs[: self._parse_limit()]
+        qs = qs[: self._parse_limit()]
 
+        # навешиваем порядковый номер (1..N) в текущей выборке
+        for idx, obj in enumerate(qs, start=1):
+            obj.position = idx
+        return qs
 
 class RoundHistoryView(ListAPIView):
     serializer_class = RoundHistorySerializer
