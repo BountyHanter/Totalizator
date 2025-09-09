@@ -46,6 +46,7 @@ OUTCOME_TO_STR = {
 }
 
 
+
 class MyWinCouponView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -69,25 +70,35 @@ class MyWinCouponView(APIView):
         )
         best_matched_count = agg["best_matched_count"] or 0
 
-        # собираем выборы по каждому матчу в рамках купона
-        # (один раз на купон: без дублей вариантов)
-        per_match = {}                    # match_id -> {"title": "...", "choices": set([...])}
+        # match.result подтягиваем сразу и кладём в ответ
+        per_match = {}  # match_id -> {"title": "...", "choices": set([...]), "result": "1"/"X"/"2"/None}
         so_rows = (
             SelectedOutcome.objects
             .filter(variant__coupon=coupon)
             .select_related("match__team1", "match__team2")
-            .values_list("match_id", "match__team1__name", "match__team2__name", "outcome")
+            .values_list("match_id", "match__team1__name", "match__team2__name", "match__result", "outcome")
         )
-        for match_id, t1, t2, outcome_enum in so_rows:
+        for match_id, t1, t2, match_result, outcome_enum in so_rows:
             entry = per_match.get(match_id)
             if entry is None:
-                entry = {"title": f"{t1} vs {t2}", "choices": set()}
+                entry = {
+                    "title": f"{t1} vs {t2}",
+                    "choices": set(),
+                    "result": match_result if match_result in {"1", "X", "2"} else None,  # ← итог матча
+                }
                 per_match[match_id] = entry
+            # результат одинаков для всех строк этого матча; если вдруг был None, обновим когда появится значение
+            if entry["result"] is None and match_result in {"1", "X", "2"}:
+                entry["result"] = match_result
             entry["choices"].add(OUTCOME_TO_STR[outcome_enum])
 
         # преобразуем choices:set -> отсортированный список
         matches = {
-            str(mid): {"title": data["title"], "choices": sorted(data["choices"])}
+            str(mid): {
+                "title": data["title"],
+                "choices": sorted(data["choices"]),
+                "result": data["result"],  # "1" / "X" / "2" / None
+            }
             for mid, data in per_match.items()
         }
 
@@ -106,5 +117,5 @@ class MyWinCouponView(APIView):
             "win_amount_total": str(win_total),
             "coefficient": str(coefficient),
             "best_matched_count": best_matched_count,
-            "matches": matches,  # {"261": {"title": "...", "choices": ["1","X"]}, ...}
+            "matches": matches,
         })
