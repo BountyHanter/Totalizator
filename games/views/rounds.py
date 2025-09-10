@@ -108,10 +108,17 @@ class LastBetVariantsView(ListAPIView):
 
         qs = qs[: self._parse_limit()]
 
-        # нумерация 1..N для текущей выборки
+        qs = list(qs)  # чтобы можно было узнать len
+        total = len(qs)
         for idx, obj in enumerate(qs, start=1):
-            obj.position = idx
+            obj.position = total - idx + 1
         return qs
+
+    def list(self, request, *args, **kwargs):
+        response = super().list(request, *args, **kwargs)
+        # добавляем глобальный счётчик всех вариантов в БД
+        response.data["total_variants"] = BetVariant.objects.count()
+        return response
 
 class RoundHistoryView(ListAPIView):
     serializer_class = RoundHistorySerializer
