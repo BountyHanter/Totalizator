@@ -116,8 +116,14 @@ class LastBetVariantsView(ListAPIView):
 
     def list(self, request, *args, **kwargs):
         response = super().list(request, *args, **kwargs)
-        # добавляем глобальный счётчик всех вариантов в БД
-        response.data["total_variants"] = BetVariant.objects.count()
+
+        current_round_id = self._current_round_id()
+        if current_round_id:
+            total_for_round = BetVariant.objects.filter(coupon__round_id=current_round_id).count()
+        else:
+            total_for_round = 0
+
+        response.data["total_variants"] = total_for_round
         return response
 
 class RoundHistoryView(ListAPIView):
