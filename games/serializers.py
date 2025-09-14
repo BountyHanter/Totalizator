@@ -5,6 +5,7 @@ from games.models.matchs import Match
 from games.models.payout import PayoutCategory
 from games.models.rounds import Round, RoundStats
 from games.models.wins import BiggestWin
+from teams.models.teams import Team
 
 
 ########## МАКС ВЫИГРЫШ И ТОП ВЫИГРЫШЕЙ
@@ -35,9 +36,20 @@ class PayoutCategorySerializer(serializers.ModelSerializer):
 
 
 ######### ТЕКУЩИЙ РАУНД
+class TeamSerializer(serializers.ModelSerializer):
+    avatar = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Team
+        fields = ["name", "avatar"]
+
+    def get_avatar(self, obj):
+        return obj.avatar_url
+
+
 class MatchSerializer(serializers.ModelSerializer):
-    team1 = serializers.StringRelatedField()
-    team2 = serializers.StringRelatedField()
+    team1 = TeamSerializer()
+    team2 = TeamSerializer()
 
     class Meta:
         model = Match
@@ -64,7 +76,6 @@ class RoundSerializer(serializers.ModelSerializer):
         from games.models.jackpot import Jackpot
         jp = Jackpot.objects.first()
         return jp.amount if jp else None
-
 
 
 class BetVariantSerializer(serializers.ModelSerializer):
