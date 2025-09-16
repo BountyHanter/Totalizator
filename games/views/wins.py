@@ -70,34 +70,49 @@ class MyWinCouponView(APIView):
         )
         best_matched_count = agg["best_matched_count"] or 0
 
-        # match.result подтягиваем сразу и кладём в ответ
-        per_match = {}  # match_id -> {"title": "...", "choices": set([...]), "result": "1"/"X"/"2"/None}
+        # матчи с выбором и результатом + аватары
+        per_match = {}
         so_rows = (
             SelectedOutcome.objects
             .filter(variant__coupon=coupon)
             .select_related("match__team1", "match__team2")
-            .values_list("match_id", "match__team1__name", "match__team2__name", "match__result", "outcome")
+            .values_list(
+                "match_id",
+                "match__team1__name", "match__team1__avatar",
+                "match__team2__name", "match__team2__avatar",
+                "match__result",
+                "outcome",
+            )
         )
-        for match_id, t1, t2, match_result, outcome_enum in so_rows:
+
+        for match_id, t1, t1_avatar, t2, t2_avatar, match_result, outcome_enum in so_rows:
             entry = per_match.get(match_id)
             if entry is None:
                 entry = {
                     "title": f"{t1} vs {t2}",
+                    "team1": {
+                        "name": t1,
+                        "avatar": request.build_absolute_uri(t1_avatar) if t1_avatar else None,
+                    },
+                    "team2": {
+                        "name": t2,
+                        "avatar": request.build_absolute_uri(t2_avatar) if t2_avatar else None,
+                    },
                     "choices": set(),
-                    "result": match_result if match_result in {"1", "X", "2"} else None,  # ← итог матча
+                    "result": match_result if match_result in {"1", "X", "2"} else None,
                 }
                 per_match[match_id] = entry
-            # результат одинаков для всех строк этого матча; если вдруг был None, обновим когда появится значение
             if entry["result"] is None and match_result in {"1", "X", "2"}:
                 entry["result"] = match_result
             entry["choices"].add(OUTCOME_TO_STR[outcome_enum])
 
-        # преобразуем choices:set -> отсортированный список
         matches = {
             str(mid): {
                 "title": data["title"],
+                "team1": data["team1"],
+                "team2": data["team2"],
                 "choices": sorted(data["choices"]),
-                "result": data["result"],  # "1" / "X" / "2" / None
+                "result": data["result"],
             }
             for mid, data in per_match.items()
         }
