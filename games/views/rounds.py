@@ -30,31 +30,31 @@ class CurrentRoundView(RetrieveAPIView):
         return obj
 
 
-class CurrentRoundPoolView(APIView):
-    permission_classes = [AllowAny]
-
-    def get(self, request):
-        round_obj = (
-            Round.objects
-            .filter(
-                status__in=[
-                    Round.Status.SELECTION,
-                    Round.Status.CALCULATION,
-                    Round.Status.PAYOUT,
-                ]
-            )
-            .order_by("-id")
-            .values("id", "live_pool")   # ⚡ теперь берём из Round
-            .first()
-        )
-
-        if not round_obj:
-            raise NotFound("Нет активного раунда")
-
-        return Response({
-            "id": round_obj["id"],
-            "live_pool": round_obj["live_pool"],   # возвращаем живой пул
-        })
+# class CurrentRoundPoolView(APIView):
+#     permission_classes = [AllowAny]
+#
+#     def get(self, request):
+#         round_obj = (
+#             Round.objects
+#             .filter(
+#                 status__in=[
+#                     Round.Status.SELECTION,
+#                     Round.Status.CALCULATION,
+#                     Round.Status.PAYOUT,
+#                 ]
+#             )
+#             .order_by("-id")
+#             .values("id", "live_pool")   # ⚡ теперь берём из Round
+#             .first()
+#         )
+#
+#         if not round_obj:
+#             raise NotFound("Нет активного раунда")
+#
+#         return Response({
+#             "id": round_obj["id"],
+#             "live_pool": round_obj["live_pool"],   # возвращаем живой пул
+#         })
 
 
 TRUTHY = {"1", "true", "t", "yes", "y", "on"}

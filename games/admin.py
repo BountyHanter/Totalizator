@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.db.models import Prefetch
 
 from games.models.bets import BetCoupon, BetVariant, SelectedOutcome
-from games.models.jackpot import Jackpot
+# from games.models.jackpot import Jackpot
 from games.models.matchs import Match
 from games.models.payout import PayoutCategory
 from games.models.rounds import Round, RoundStats
@@ -22,15 +22,15 @@ admin.site.register(Round)
 admin.site.register(RoundStats)
 admin.site.register(Match)
 
-@admin.register(Jackpot)
-class JackpotAdmin(admin.ModelAdmin):
-    def has_add_permission(self, request):
-        # Запрещает добавление новых записей
-        return False
-
-    def has_delete_permission(self, request, obj=None):
-        # Запрещает удаление записей
-        return False
+# @admin.register(Jackpot)
+# class JackpotAdmin(admin.ModelAdmin):
+#     def has_add_permission(self, request):
+#         # Запрещает добавление новых записей
+#         return False
+#
+#     def has_delete_permission(self, request, obj=None):
+#         # Запрещает удаление записей
+#         return False
 
 class SelectedOutcomeInline(admin.TabularInline):
     model = SelectedOutcome

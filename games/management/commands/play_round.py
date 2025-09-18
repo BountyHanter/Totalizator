@@ -22,7 +22,7 @@ class Command(BaseCommand):
 
         # 2) стадия калькуляции
         start_calculation(round_obj)
-        generate_results_for_round(round_obj)
+        generate_results_for_round(round_obj, force_outcome=Match.Outcome.WIN_1)
 
         # 3) пересчитали matched_count у всех вариантов
         recompute_matched_counts(round_obj)

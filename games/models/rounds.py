@@ -12,12 +12,12 @@ class Round(models.Model):
     start_time = models.DateTimeField(null=True, blank=True)
     selection_end_time = models.DateTimeField(null=True, blank=True)
     end_time = models.DateTimeField(null=True, blank=True)
-    live_pool = models.DecimalField(
-        max_digits=12,
-        decimal_places=2,
-        default=0,
-        help_text="Текущий пул ставок (живой, обновляется при создании купонов)"
-    )
+    # live_pool = models.DecimalField(
+    #     max_digits=12,
+    #     decimal_places=2,
+    #     default=0,
+    #     help_text="Текущий пул ставок (живой, обновляется при создании купонов)"
+    # )
     status = models.CharField(
         max_length=20,
         choices=Status.choices,
@@ -40,10 +40,10 @@ class RoundStats(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
 
-    total_pool = models.DecimalField(max_digits=12, decimal_places=2)
-    payout_pool = models.DecimalField(max_digits=12, decimal_places=2)
-    jackpot_before = models.DecimalField(max_digits=12, decimal_places=2)
-    jackpot_after = models.DecimalField(max_digits=12, decimal_places=2)
+    # total_pool = models.DecimalField(max_digits=12, decimal_places=2)
+    # payout_pool = models.DecimalField(max_digits=12, decimal_places=2)
+    # jackpot_before = models.DecimalField(max_digits=12, decimal_places=2)
+    # jackpot_after = models.DecimalField(max_digits=12, decimal_places=2)
     total_win = models.DecimalField(max_digits=12, decimal_places=2)
 
     count_winners_by_category = models.JSONField(default=dict)

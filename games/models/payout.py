@@ -12,21 +12,11 @@ class PayoutCategory(models.Model):
             MaxValueValidator(10)
         ]
     )
-    percent = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    coefficient = models.DecimalField(max_digits=5, decimal_places=2, default=1.00)
     active = models.BooleanField(default=True)
-
-    def clean(self):
-        total = sum(
-            PayoutCategory.objects.filter(active=True).exclude(pk=self.pk).values_list('percent', flat=True)
-        ) + self.percent
-        if total > 100:
-            raise ValidationError("Суммарный процент не может превышать 100%")
 
     class Meta:
         indexes = [
-            # Частый паттерн: filter(active=True).order_by('matched_count')
-            # Частичный индекс ускоряет только активные категории.
-            # Требуется PostgreSQL (Django поддерживает condition начиная с 3.2).
             models.Index(
                 fields=["matched_count"],
                 name="payout_active_matched_idx",

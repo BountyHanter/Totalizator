@@ -32,7 +32,7 @@ class BetVariantTopSerializer(serializers.ModelSerializer):
 class PayoutCategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = PayoutCategory
-        fields = ["matched_count", "percent", "active"]
+        fields = ["matched_count", "coefficient", "active"]
 
 
 ######### ТЕКУЩИЙ РАУНД
@@ -58,24 +58,24 @@ class MatchSerializer(serializers.ModelSerializer):
 
 class RoundSerializer(serializers.ModelSerializer):
     matches = MatchSerializer(many=True, read_only=True)
-    jackpot = serializers.SerializerMethodField()
+    # jackpot = serializers.SerializerMethodField()
 
     class Meta:
         model = Round
         fields = [
             "id",
             "status",
-            "live_pool",
+            # "live_pool",
             "start_time",
             "selection_end_time",
             "matches",
-            "jackpot",
+            # "jackpot",
         ]
 
-    def get_jackpot(self, obj):
-        from games.models.jackpot import Jackpot
-        jp = Jackpot.objects.first()
-        return jp.amount if jp else None
+    # def get_jackpot(self, obj):
+    #     from games.models.jackpot import Jackpot
+    #     jp = Jackpot.objects.first()
+    #     return jp.amount if jp else None
 
 
 class BetVariantSerializer(serializers.ModelSerializer):
@@ -120,10 +120,10 @@ class RoundStatsSerializer(serializers.ModelSerializer):
 
     def get_totals(self, obj: RoundStats):
         return {
-            "total_pool": obj.total_pool,
-            "payout_pool": obj.payout_pool,
-            "jackpot_before": obj.jackpot_before,
-            "jackpot_after": obj.jackpot_after,
+            # "total_pool": obj.total_pool,
+            # "payout_pool": obj.payout_pool,
+            # "jackpot_before": obj.jackpot_before,
+            # "jackpot_after": obj.jackpot_after,
             "total_win": obj.total_win,
         }
 
