@@ -25,12 +25,12 @@ from users.views.register import AutoRegisterLoginAPIView
 from users.views.user_Info import UserProfileAPIView
 
 urlpatterns = [
-    path("api/token/", TokenObtainPairView.as_view()),
-    path("api/token/refresh/", TokenRefreshView.as_view()),
-    path('admin/', admin.site.urls),
-    path('auth/login/', UserLoginAPIView.as_view()),
-    path('auth/logout/', LogoutAPIView.as_view()),
-    path('auth/register/', AutoRegisterLoginAPIView.as_view()),
+    path("api/v1/token/", TokenObtainPairView.as_view()),
+    path("api/v1/token/refresh/", TokenRefreshView.as_view()),
+    path('api/v1/admin/', admin.site.urls),
+    path('api/v1/auth/login/', UserLoginAPIView.as_view()),
+    path('api/v1/auth/logout/', LogoutAPIView.as_view()),
+    path('api/v1/auth/register/', AutoRegisterLoginAPIView.as_view()),
 
     path('api/v1/csrf/', get_csrf_token),
     path('api/v1/', include([
@@ -39,6 +39,6 @@ urlpatterns = [
 
     ])),
 
-    path("colors/", ColorIntervalListView.as_view()),
+    path("api/v1/colors/", ColorIntervalListView.as_view()),
 
 ]
