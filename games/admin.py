@@ -1,21 +1,70 @@
+from django import forms
 from django.contrib import admin
 from django.db.models import Prefetch
 
 from games.models.bets import BetCoupon, BetVariant, SelectedOutcome
 # from games.models.jackpot import Jackpot
 from games.models.matchs import Match
-from games.models.payout import PayoutCategory
+from games.models.payout import PayoutScheme
 from games.models.rounds import Round, RoundStats
 from games.models.wins import BiggestWin
 
 
-@admin.register(PayoutCategory)
-class PayoutCategoryAdmin(admin.ModelAdmin):
-    def has_add_permission(self, request):
-        return False
+class PayoutSchemeForm(forms.ModelForm):
+    coeff_1 = forms.DecimalField(label="1 угаданный", max_digits=5, decimal_places=2)
+    coeff_2 = forms.DecimalField(label="2 угаданных", max_digits=5, decimal_places=2)
+    coeff_3 = forms.DecimalField(label="3 угаданных", max_digits=5, decimal_places=2)
+    coeff_4 = forms.DecimalField(label="4 угаданных", max_digits=5, decimal_places=2)
+    coeff_5 = forms.DecimalField(label="5 угаданных", max_digits=5, decimal_places=2)
+    coeff_6 = forms.DecimalField(label="6 угаданных", max_digits=5, decimal_places=2)
+    coeff_7 = forms.DecimalField(label="7 угаданных", max_digits=5, decimal_places=2)
+    coeff_8 = forms.DecimalField(label="8 угаданных", max_digits=5, decimal_places=2)
+    coeff_9 = forms.DecimalField(label="9 угаданных", max_digits=5, decimal_places=2)
+    coeff_10 = forms.DecimalField(label="10 угаданных", max_digits=5, decimal_places=2)
 
-    def has_delete_permission(self, request, obj=None):
-        return False
+    class Meta:
+        model = PayoutScheme
+        fields = ("name", "description", "active")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        coeffs = self.instance.coefficients or {}
+        for i in range(1, 11):
+            self.fields[f"coeff_{i}"].initial = coeffs.get(str(i), 0)
+
+    def clean(self):
+        cleaned = super().clean()
+        coeffs = {}
+        for i in range(1, 11):
+            value = cleaned.get(f"coeff_{i}")
+            if value is None:
+                raise forms.ValidationError(f"Коэффициент для {i} угаданных обязателен")
+            coeffs[str(i)] = value
+
+        # здесь же проверяем количество ключей
+        if set(coeffs.keys()) != {str(i) for i in range(1, 11)}:
+            raise forms.ValidationError("Должно быть ровно 10 коэффициентов")
+
+        cleaned["coefficients"] = coeffs
+        return cleaned
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        instance.coefficients = {
+            str(i): float(self.cleaned_data[f"coeff_{i}"]) for i in range(1, 11)
+        }
+        # full_clean тут можно вообще убрать, форма уже всё проверила
+        if commit:
+            instance.save()
+        return instance
+
+
+@admin.register(PayoutScheme)
+class PayoutSchemeAdmin(admin.ModelAdmin):
+    form = PayoutSchemeForm
+    list_display = ("name", "active", "created_at", "updated_at")
+    list_filter = ("active",)
+    search_fields = ("name",)
 
 
 admin.site.register(Round)

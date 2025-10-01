@@ -1,25 +1,24 @@
 from django.core.exceptions import ValidationError
-from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
-from django.db.models import Q
 
 
-class PayoutCategory(models.Model):
-    matched_count = models.PositiveSmallIntegerField(
-        unique=True,
-        validators=[
-            MinValueValidator(1),
-            MaxValueValidator(10)
-        ]
+class PayoutScheme(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True, null=True)
+
+    coefficients = models.JSONField(
+        default=dict,
+        help_text="Словарь с коэффициентами для 1–10 угаданных матчей"
     )
-    coefficient = models.DecimalField(max_digits=5, decimal_places=2, default=1.00)
+
     active = models.BooleanField(default=True)
 
-    class Meta:
-        indexes = [
-            models.Index(
-                fields=["matched_count"],
-                name="payout_active_matched_idx",
-                condition=Q(active=True),
-            ),
-        ]
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def get_coefficient(self, matched_count: int) -> float:
+        """Вернёт коэффициент для указанного количества угаданных."""
+        return float(self.coefficients.get(str(matched_count), 0.0))
+
+    def __str__(self):
+        return self.name

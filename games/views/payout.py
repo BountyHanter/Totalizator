@@ -1,14 +1,14 @@
 from rest_framework.generics import ListAPIView
 from rest_framework.permissions import AllowAny
 
-from games.models.payout import PayoutCategory
-from games.serializers import PayoutCategorySerializer
+from games.models.payout import PayoutScheme
+from games.serializers import PayoutSchemeSerializer
 
 
-class PayoutCategoryListView(ListAPIView):
-    serializer_class = PayoutCategorySerializer
+class PayoutSchemeListView(ListAPIView):
+    serializer_class = PayoutSchemeSerializer
     permission_classes = [AllowAny]
 
     def get_queryset(self):
-        # отдаем только активные
-        return PayoutCategory.objects.filter(active=True).order_by("id")
+        # отдаём только активные схемы
+        return PayoutScheme.objects.filter(active=True).order_by("id")

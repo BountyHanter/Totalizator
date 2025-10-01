@@ -1,6 +1,8 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
+from teams.models.teams import Team
+
 
 class CustomUser(AbstractUser):
     """
@@ -12,4 +14,12 @@ class CustomUser(AbstractUser):
         decimal_places=6,
         default=50_000,
         verbose_name="Кэш баланса"
+    )
+    favorite_team = models.ForeignKey(
+        Team,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="fans",
+        verbose_name="Любимая команда"
     )

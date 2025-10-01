@@ -5,21 +5,21 @@ from django.dispatch import receiver
 
 from games.models.bets import SelectedOutcome, BetCoupon
 # from games.models.jackpot import Jackpot
-from games.models.payout import PayoutCategory
+# from games.models.payout import PayoutCategory
 
 
-@receiver(post_migrate)
-def create_payout_categories(sender, app_config, **kwargs):
-    if app_config.label != "games":
-        return
-    for i in range(1, 11):
-        PayoutCategory.objects.get_or_create(
-            matched_count=i,
-            defaults={
-                'coefficient': 1,
-                'active': i >= 6
-            }
-        )
+# @receiver(post_migrate)
+# def create_payout_categories(sender, app_config, **kwargs):
+#     if app_config.label != "games":
+#         return
+#     for i in range(1, 11):
+#         PayoutCategory.objects.get_or_create(
+#             matched_count=i,
+#             defaults={
+#                 'coefficient': 1,
+#                 'active': i >= 6
+#             }
+#         )
 
     # создать джекпот, если его ещё нет
     # Jackpot.objects.get_or_create(id=1, defaults={'amount': 0})

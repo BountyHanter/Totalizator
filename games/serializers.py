@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from games.models.bets import BetVariant, SelectedOutcome
 from games.models.matchs import Match
-from games.models.payout import PayoutCategory
+from games.models.payout import PayoutScheme
 from games.models.rounds import Round, RoundStats
 from games.models.wins import BiggestWin
 from teams.models.teams import Team
@@ -29,10 +29,10 @@ class BetVariantTopSerializer(serializers.ModelSerializer):
 
 
 ######### ПРОЦЕНТ ВЫПЛАТ
-class PayoutCategorySerializer(serializers.ModelSerializer):
+class PayoutSchemeSerializer(serializers.ModelSerializer):
     class Meta:
-        model = PayoutCategory
-        fields = ["matched_count", "coefficient", "active"]
+        model = PayoutScheme
+        fields = ["id", "name", "description", "coefficients", "active", "created_at", "updated_at"]
 
 
 ######### ТЕКУЩИЙ РАУНД

@@ -6,7 +6,6 @@ from django.db import transaction
 from django.utils import timezone
 
 from games.models.bets import BetVariant, BetCoupon
-from games.models.payout import PayoutCategory
 from games.models.rounds import Round, RoundStats
 from games.models.wins import BiggestWin
 
@@ -17,39 +16,35 @@ Q2 = Decimal("0.01")  # квант для округления до копеек
 @transaction.atomic
 def process_payouts(round_obj: Round):
     """
-    Расчёт выплат по новой схеме:
+    Расчёт выплат по новой схеме (через PayoutScheme):
     - Берём ставку на вариант = amount_total / num_variants
-    - Находим коэффициент по matched_count в PayoutCategory
+    - Находим коэффициент по matched_count в payout_scheme купона
     - Выигрыш = ставка * коэффициент
     - Заполняем win_amount, win_multiplier, is_win
     - Обновляем купоны, балансы, RoundStats и BiggestWin
     """
+    # переводим раунд в стадию PAYOUT
     round_obj.refresh_from_db()
     round_obj.status = Round.Status.PAYOUT
     round_obj.save(update_fields=["status"])
 
-    # активные коэффициенты
-    coeff_by_count = {
-        c.matched_count: c.coefficient
-        for c in PayoutCategory.objects.filter(active=True).only("matched_count", "coefficient")
-    }
+    # инициализация словарей для статистики (ключи 1–10 всегда фиксированы)
+    count_winners_by_category = {str(i): 0 for i in range(1, 11)}
+    payout_by_category_dec = {str(i): Decimal("0.00") for i in range(1, 11)}
 
-    # подготовка под статистику
-    count_winners_by_category = {str(k): 0 for k in coeff_by_count.keys()}
-    payout_by_category_dec = {str(k): Decimal("0.00") for k in coeff_by_count.keys()}
-
-    # варианты раунда
+    # достаём все варианты в раунде (с купонами и юзерами)
     variants = list(
         BetVariant.objects
         .filter(coupon__round=round_obj)
-        .select_related("coupon", "coupon__user")
+        .select_related("coupon", "coupon__user", "coupon__payout_scheme")
         .only(
             "id", "matched_count", "win_amount", "win_multiplier", "is_win",
             "coupon__id", "coupon__amount_total", "coupon__num_variants",
-            "coupon__user__id",
+            "coupon__user__id", "coupon__payout_scheme__coefficients",
         )
     )
     if not variants:
+        # если вариантов нет → просто финализируем раунд с нулевой статистикой
         _finalize_round_with_stats(
             round_obj=round_obj,
             total_win=Decimal("0.00"),
@@ -60,19 +55,22 @@ def process_payouts(round_obj: Round):
         )
         return
 
+    # кеш для вычисленной ставки на вариант (чтобы не делить каждый раз)
     bet_amount_cache: dict[int, Decimal] = {}
+
+    # общая статистика
     total_win = Decimal("0.00")
-    best_multiplier = {"x": 0.00, "sum": 0.00}
-    biggest_win = {"sum": 0.00, "x": 0.00}
+    best_multiplier = {"x": 0.00, "sum": 0.00}  # лучший коэффициент за раунд
+    biggest_win = {"sum": 0.00, "x": 0.00}      # самый большой выигрыш за раунд
 
-    coupon_total_win: dict[int, Decimal] = defaultdict(Decimal)
-    user_balance_delta: dict[int, Decimal] = defaultdict(Decimal)
+    coupon_total_win: dict[int, Decimal] = defaultdict(Decimal)  # сумма выигрыша по каждому купону
+    user_balance_delta: dict[int, Decimal] = defaultdict(Decimal)  # изменение баланса по каждому юзеру
 
-    # рекорд за этот раунд
-    round_max_variant_win = Decimal("0.00")
+    round_max_variant_win = Decimal("0.00")  # рекорд за раунд по одному варианту
 
+    # основной цикл — считаем выплаты по каждому варианту
     for v in variants:
-        # ставка на вариант
+        # ставка на один вариант (одинаковая для всех вариантов купона)
         cid = v.coupon_id
         bet_amount = bet_amount_cache.get(cid)
         if bet_amount is None:
@@ -82,40 +80,47 @@ def process_payouts(round_obj: Round):
                 bet_amount = Decimal("0.00")
             bet_amount_cache[cid] = bet_amount
 
-        coeff = coeff_by_count.get(v.matched_count)
-        if coeff:
-            v.win_multiplier = coeff
-            v.win_amount = (bet_amount * coeff).quantize(Q2, rounding=ROUND_HALF_UP)
+        # получаем коэффициент из payout_scheme купона
+        coeff = v.coupon.payout_scheme.get_coefficient(v.matched_count)
+
+        if coeff > 0:
+            # сохраняем коэффициент и выигрыш
+            v.win_multiplier = Decimal(str(coeff))
+            v.win_amount = (bet_amount * v.win_multiplier).quantize(Q2, rounding=ROUND_HALF_UP)
             v.is_win = v.win_amount > 0
 
+            # обновляем статистику по категории matched_count
             key = str(v.matched_count)
-            if key in count_winners_by_category:
-                count_winners_by_category[key] += 1
-                payout_by_category_dec[key] = (payout_by_category_dec[key] + v.win_amount).quantize(Q2)
+            count_winners_by_category[key] += 1
+            payout_by_category_dec[key] = (payout_by_category_dec[key] + v.win_amount).quantize(Q2)
 
+            # глобальные суммы
             total_win = (total_win + v.win_amount).quantize(Q2)
             coupon_total_win[cid] = (coupon_total_win[cid] + v.win_amount).quantize(Q2)
             user_balance_delta[v.coupon.user_id] = (user_balance_delta[v.coupon.user_id] + v.win_amount).quantize(Q2)
 
+            # лучший коэффициент/выигрыш для статистики
             coeff_f = float(coeff)
             win_f = float(v.win_amount)
-
             if (coeff_f > best_multiplier["x"]) or (coeff_f == best_multiplier["x"] and win_f > best_multiplier["sum"]):
                 best_multiplier = {"x": coeff_f, "sum": win_f}
 
+            # рекорд по самому большому выигрышу варианта
             if v.win_amount > round_max_variant_win:
                 round_max_variant_win = v.win_amount
                 biggest_win = {"sum": float(v.win_amount), "x": coeff_f}
             elif v.win_amount == round_max_variant_win and coeff_f > biggest_win["x"]:
                 biggest_win = {"sum": float(v.win_amount), "x": coeff_f}
         else:
+            # если коэффициента нет → вариант проиграл
             v.win_multiplier = Decimal("0.00")
             v.win_amount = Decimal("0.00")
             v.is_win = False
 
+    # массовое обновление всех вариантов
     BetVariant.objects.bulk_update(variants, ["win_amount", "win_multiplier", "is_win"])
 
-    # обновляем купоны
+    # обновляем купоны (суммарный выигрыш, флаг is_winner, просмотренность)
     coupons = list(
         BetCoupon.objects.filter(round=round_obj).select_related("user").only("id", "user_id")
     )
@@ -126,7 +131,7 @@ def process_payouts(round_obj: Round):
             c.is_winner = total > 0
             c.is_seen = True
 
-        # лучший купон на юзера → непросмотренный
+        # делаем «лучший купон» у каждого юзера непросмотренным
         best_by_user: dict[int, BetCoupon] = {}
         for c in coupons:
             if not c.is_winner:
@@ -159,7 +164,7 @@ def process_payouts(round_obj: Round):
             u.balance_cached = (u.balance_cached + user_balance_delta[u.id]).quantize(Q2)
         User.objects.bulk_update(users, ["balance_cached"])
 
-    # финализация
+    # финализация: создаём RoundStats и переводим раунд в FINISHED
     _finalize_round_with_stats(
         round_obj=round_obj,
         total_win=total_win,

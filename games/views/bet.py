@@ -4,11 +4,12 @@ from decimal import Decimal
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.exceptions import ValidationError, NotFound
+from rest_framework.exceptions import ValidationError
 
+from games.models.payout import PayoutScheme
 from games.models.rounds import Round
 from games.models.bets import BetCoupon, BetVariant, SelectedOutcome
-
+from users.models.fanfool import FanPool
 
 OUTCOME_MAP = {
     "1": SelectedOutcome.Outcome.WIN1,
@@ -27,9 +28,10 @@ class PlaceBetView(APIView):
         round_id = request.data.get("round_id")
         stake_per_variant = request.data.get("stake_per_variant")
         predictions = request.data.get("predictions")
+        payout_scheme_id = request.data.get("payout_scheme_id")
 
         # базовые проверки
-        if not round_id or not stake_per_variant or not predictions:
+        if not round_id or not stake_per_variant or not predictions or not payout_scheme_id:
             raise ValidationError("Не все обязательные поля переданы.")
 
         try:
@@ -45,6 +47,12 @@ class PlaceBetView(APIView):
             round_obj = Round.objects.get(id=round_id, status=Round.Status.SELECTION)
         except Round.DoesNotExist:
             raise ValidationError("Нет доступного раунда для ставок.")
+
+        # проверяем схему выплат
+        try:
+            scheme = PayoutScheme.objects.get(id=payout_scheme_id, active=True)
+        except PayoutScheme.DoesNotExist:
+            raise ValidationError("Указанная схема выплат не найдена или не активна.")
 
         # проверяем количество матчей
         if len(predictions) != 10:
@@ -94,6 +102,7 @@ class PlaceBetView(APIView):
         coupon = BetCoupon.objects.create(
             user=user,
             round=round_obj,
+            payout_scheme=scheme,
             amount_total=total_amount,
             num_variants=num_variants
         )
@@ -119,6 +128,12 @@ class PlaceBetView(APIView):
         # списываем баланс
         user.balance_cached -= total_amount
         user.save(update_fields=["balance_cached"])
+
+        pool = FanPool.objects.first()
+        if pool:
+            contribution = (total_amount * pool.percent / 100).quantize(Decimal("0.01"))
+            pool.amount += contribution
+            pool.save(update_fields=["amount", "updated_at"])
 
         return Response({
             "status": "ok",

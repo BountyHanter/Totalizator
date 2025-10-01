@@ -19,26 +19,31 @@ from django.urls import path, include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from config.utils.get_csrf import get_csrf_token
+from teams.views import TeamListView
 from users.views.auth import UserLoginAPIView, LogoutAPIView
 from users.views.color import ColorIntervalListView
 from users.views.register import AutoRegisterLoginAPIView
-from users.views.user_Info import UserProfileAPIView
+from users.views.user_Info import UserProfileAPIView, FavoriteTeamUpdateView
 
 urlpatterns = [
-    path("api/token/", TokenObtainPairView.as_view()),
-    path("api/token/refresh/", TokenRefreshView.as_view()),
-    path('admin/', admin.site.urls),
-    path('auth/login/', UserLoginAPIView.as_view()),
-    path('auth/logout/', LogoutAPIView.as_view()),
-    path('auth/register/', AutoRegisterLoginAPIView.as_view()),
+    path("api/v1/token/", TokenObtainPairView.as_view()),
+    path("api/v1/token/refresh/", TokenRefreshView.as_view()),
+    path('api/v1/admin/', admin.site.urls),
+    path('api/v1/auth/login/', UserLoginAPIView.as_view()),
+    path('api/v1/auth/logout/', LogoutAPIView.as_view()),
+    path('api/v1/auth/register/', AutoRegisterLoginAPIView.as_view()),
 
     path('api/v1/csrf/', get_csrf_token),
     path('api/v1/', include([
         path('games/', include('games.urls')),
         path('profile/', UserProfileAPIView.as_view()),
 
+        path('favorite_team/', FavoriteTeamUpdateView.as_view()),
+
+        path('teams/', TeamListView.as_view()),
+
     ])),
 
-    path("colors/", ColorIntervalListView.as_view()),
+    path("api/v1/colors/", ColorIntervalListView.as_view()),
 
 ]

@@ -4,6 +4,7 @@ from django.db import models
 from django.contrib.auth import get_user_model
 
 from games.models.matchs import Match
+from games.models.payout import PayoutScheme
 from games.models.rounds import Round
 
 User = get_user_model()
@@ -13,6 +14,12 @@ class BetCoupon(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     round = models.ForeignKey(Round, on_delete=models.CASCADE, related_name="coupons")
     amount_total = models.DecimalField(max_digits=10, decimal_places=2)
+    payout_scheme = models.ForeignKey(
+        PayoutScheme,
+        on_delete=models.PROTECT,
+        related_name="coupons",
+        help_text="Схема выплат, по которой рассчитывается купон"
+    )
     win_amount_total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     num_variants = models.PositiveIntegerField()
     is_seen = models.BooleanField(default=True)
