@@ -11,16 +11,16 @@ from games.models.wins import BiggestWin
 
 
 class PayoutSchemeForm(forms.ModelForm):
-    coeff_1 = forms.DecimalField(label="1 угаданный", max_digits=5, decimal_places=2)
-    coeff_2 = forms.DecimalField(label="2 угаданных", max_digits=5, decimal_places=2)
-    coeff_3 = forms.DecimalField(label="3 угаданных", max_digits=5, decimal_places=2)
-    coeff_4 = forms.DecimalField(label="4 угаданных", max_digits=5, decimal_places=2)
-    coeff_5 = forms.DecimalField(label="5 угаданных", max_digits=5, decimal_places=2)
-    coeff_6 = forms.DecimalField(label="6 угаданных", max_digits=5, decimal_places=2)
-    coeff_7 = forms.DecimalField(label="7 угаданных", max_digits=5, decimal_places=2)
-    coeff_8 = forms.DecimalField(label="8 угаданных", max_digits=5, decimal_places=2)
-    coeff_9 = forms.DecimalField(label="9 угаданных", max_digits=5, decimal_places=2)
-    coeff_10 = forms.DecimalField(label="10 угаданных", max_digits=5, decimal_places=2)
+    coeff_1 = forms.DecimalField(label="1 угаданный", max_digits=8, decimal_places=2)
+    coeff_2 = forms.DecimalField(label="2 угаданных", max_digits=8, decimal_places=2)
+    coeff_3 = forms.DecimalField(label="3 угаданных", max_digits=8, decimal_places=2)
+    coeff_4 = forms.DecimalField(label="4 угаданных", max_digits=8, decimal_places=2)
+    coeff_5 = forms.DecimalField(label="5 угаданных", max_digits=8, decimal_places=2)
+    coeff_6 = forms.DecimalField(label="6 угаданных", max_digits=8, decimal_places=2)
+    coeff_7 = forms.DecimalField(label="7 угаданных", max_digits=8, decimal_places=2)
+    coeff_8 = forms.DecimalField(label="8 угаданных", max_digits=8, decimal_places=2)
+    coeff_9 = forms.DecimalField(label="9 угаданных", max_digits=8, decimal_places=2)
+    coeff_10 = forms.DecimalField(label="10 угаданных", max_digits=8, decimal_places=2)
 
     class Meta:
         model = PayoutScheme
