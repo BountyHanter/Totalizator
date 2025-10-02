@@ -7,7 +7,7 @@ class ColorInterval(models.Model):
     payout_scheme = models.ForeignKey(
         PayoutScheme,
         on_delete=models.CASCADE,
-        related_name="color_scheme",
+        related_name="color_intervals",
         verbose_name="Схема выплат"
     )
 
