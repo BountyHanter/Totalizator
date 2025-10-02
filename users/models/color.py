@@ -4,7 +4,7 @@ from games.models.payout import PayoutScheme
 
 
 class ColorInterval(models.Model):
-    payout_scheme = models.OneToOneField(
+    payout_scheme = models.ForeignKey(
         PayoutScheme,
         on_delete=models.CASCADE,
         related_name="color_scheme",

@@ -37,11 +37,11 @@ class ColorIntervalSerializer(serializers.ModelSerializer):
 
 
 class PayoutSchemeSerializer(serializers.ModelSerializer):
-    color_scheme = ColorIntervalSerializer(read_only=True)
+    color_intervals = ColorIntervalSerializer(many=True, read_only=True)
 
     class Meta:
         model = PayoutScheme
-        fields = ("id", "name", "description", "coefficients", "active", "color_scheme")
+        fields = ("id", "name", "description", "coefficients", "active", "color_intervals")
 
 
 ######### ТЕКУЩИЙ РАУНД

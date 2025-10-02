@@ -13,6 +13,6 @@ class PayoutSchemeListView(ListAPIView):
         return (
             PayoutScheme.objects
             .filter(active=True)
-            .select_related("color_scheme")  # чтобы не было N+1 запросов
+            .prefetch_related("color_intervals")  # важно для ForeignKey (много)
             .order_by("id")
         )
