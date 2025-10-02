@@ -10,5 +10,9 @@ class PayoutSchemeListView(ListAPIView):
     permission_classes = [AllowAny]
 
     def get_queryset(self):
-        # отдаём только активные схемы
-        return PayoutScheme.objects.filter(active=True).order_by("id")
+        return (
+            PayoutScheme.objects
+            .filter(active=True)
+            .select_related("color_scheme")  # чтобы не было N+1 запросов
+            .order_by("id")
+        )

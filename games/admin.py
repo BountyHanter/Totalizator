@@ -8,6 +8,7 @@ from games.models.matchs import Match
 from games.models.payout import PayoutScheme
 from games.models.rounds import Round, RoundStats
 from games.models.wins import BiggestWin
+from users.models import ColorInterval
 
 
 class PayoutSchemeForm(forms.ModelForm):
@@ -59,13 +60,19 @@ class PayoutSchemeForm(forms.ModelForm):
         return instance
 
 
+class ColorIntervalInline(admin.StackedInline):
+    model = ColorInterval
+    can_delete = False   # чтобы не удаляли связь случайно
+    extra = 0
+
+
 @admin.register(PayoutScheme)
 class PayoutSchemeAdmin(admin.ModelAdmin):
     form = PayoutSchemeForm
     list_display = ("name", "active", "created_at", "updated_at")
     list_filter = ("active",)
     search_fields = ("name",)
-
+    inlines = [ColorIntervalInline]
 
 admin.site.register(Round)
 admin.site.register(RoundStats)

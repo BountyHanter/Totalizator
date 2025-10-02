@@ -6,6 +6,7 @@ from games.models.payout import PayoutScheme
 from games.models.rounds import Round, RoundStats
 from games.models.wins import BiggestWin
 from teams.models.teams import Team
+from users.models import ColorInterval
 
 
 ########## МАКС ВЫИГРЫШ И ТОП ВЫИГРЫШЕЙ
@@ -29,10 +30,18 @@ class BetVariantTopSerializer(serializers.ModelSerializer):
 
 
 ######### ПРОЦЕНТ ВЫПЛАТ
+class ColorIntervalSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ColorInterval
+        fields = ("start_value", "end_value", "background_color", "border_color")
+
+
 class PayoutSchemeSerializer(serializers.ModelSerializer):
+    color_scheme = ColorIntervalSerializer(read_only=True)
+
     class Meta:
         model = PayoutScheme
-        fields = ["id", "name", "description", "coefficients", "active", "created_at", "updated_at"]
+        fields = ("id", "name", "description", "coefficients", "active", "color_scheme")
 
 
 ######### ТЕКУЩИЙ РАУНД
