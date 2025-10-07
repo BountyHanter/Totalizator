@@ -3,7 +3,7 @@ from django.utils import timezone
 from games.models.rounds import Round
 
 
-SELECTION_DURATION = 180  # секунд
+SELECTION_DURATION = 90  # секунд
 
 
 def start_selection(round_obj):
