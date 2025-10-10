@@ -1,4 +1,4 @@
-from itertools import product, islice
+from itertools import product
 from decimal import Decimal
 
 from django.db import transaction
@@ -14,20 +14,13 @@ from games.models.rounds import Round
 from games.models.bets import BetCoupon, BetVariant, SelectedOutcome
 from users.models.fanfool import FanPool
 
+
 OUTCOME_MAP = {
     "1": SelectedOutcome.Outcome.WIN1,
     "X": SelectedOutcome.Outcome.DRAW,
     "2": SelectedOutcome.Outcome.WIN2,
 }
 
-def iter_combinations(grouped, batch_size=1000):
-    """Лениво выдаёт комбинации батчами, чтобы не держать всё в памяти."""
-    it = product(*grouped)
-    while True:
-        batch = list(islice(it, batch_size))
-        if not batch:
-            break
-        yield batch
 
 class PlaceBetView(APIView):
     permission_classes = [IsAuthenticated]
@@ -47,7 +40,7 @@ class PlaceBetView(APIView):
 
         try:
             stake_per_variant = Decimal(stake_per_variant)
-        except:
+        except Exception:
             raise ValidationError("Ставка должна быть числом.")
 
         if stake_per_variant <= 0:
@@ -69,88 +62,82 @@ class PlaceBetView(APIView):
         if len(predictions) != 10:
             raise ValidationError("Необходимо выбрать исходы во всех 10 матчах.")
 
-        # Собираем матчи
+        # допустимые матчи
         valid_matches = set(round_obj.matches.values_list("id", flat=True))
-
         for match_id, outcomes in predictions.items():
             try:
                 match_id = int(match_id)
             except ValueError:
                 raise ValidationError(f"Некорректный match_id: {match_id}")
-
             if match_id not in valid_matches:
                 raise ValidationError(f"Матч {match_id} не относится к этому раунду.")
 
-        # строим комбинации
+        # группируем исходы
         grouped = []
         for match_id, outcomes in predictions.items():
             if not outcomes:
                 raise ValidationError(f"Матч {match_id}: нужно выбрать хотя бы один исход.")
-
             seen = set()
             valid = []
             for o in outcomes:
                 if o in OUTCOME_MAP and o not in seen:
                     valid.append(o)
                     seen.add(o)
-
             if not valid:
                 raise ValidationError(f"Матч {match_id}: некорректные исходы.")
             grouped.append([(int(match_id), outcome) for outcome in valid])
 
-        # Считаем кол-во комбинаций (через len(product) нельзя — используем произведение длин)
+        # считаем количество комбинаций
         num_variants = 1
         for g in grouped:
             num_variants *= len(g)
-
         if num_variants > 10000:
-            raise ValidationError("Превышено максимальное число вариантов (10 000). Уточните выбор.")
+            raise ValidationError("Превышено максимальное число вариантов (10 000).")
 
         total_amount = stake_per_variant * num_variants
-
-        # проверяем баланс
         if user.balance_cached < total_amount:
             raise ValidationError("Недостаточно средств для ставки.")
 
+        # основная транзакция
         with transaction.atomic():
-            # создаём купон
             coupon = BetCoupon.objects.create(
                 user=user,
                 round=round_obj,
                 payout_scheme=scheme,
                 amount_total=total_amount,
-                num_variants=num_variants
+                num_variants=num_variants,
             )
 
-            # Генерация и вставка партиями
-            for combo_batch in iter_combinations(grouped, batch_size=1000):
-                variant_batch = [BetVariant(coupon=coupon) for _ in combo_batch]
-                BetVariant.objects.bulk_create(variant_batch, batch_size=1000)
+            # создаём все варианты одной пачкой
+            combinations = list(product(*grouped))
+            variants = [BetVariant(coupon=coupon) for _ in combinations]
+            BetVariant.objects.bulk_create(variants, batch_size=1000)
 
-                # после вставки просто выбираем созданные варианты купона
-                created_variants = list(BetVariant.objects.filter(coupon=coupon).order_by("id"))
+            # получаем созданные варианты по порядку
+            created_variants = list(BetVariant.objects.filter(coupon=coupon).order_by("id"))
 
-                outcome_objs = []
-                for variant, combo in zip(created_variants, combo_batch):
-                    for match_id, outcome_raw in combo:
-                        outcome_objs.append(SelectedOutcome(
-                            variant=variant,
-                            match_id=match_id,
-                            outcome=OUTCOME_MAP[outcome_raw],
-                        ))
+            # создаём все исходы
+            outcomes = []
+            for variant, combo in zip(created_variants, combinations):
+                for match_id, outcome_raw in combo:
+                    outcomes.append(SelectedOutcome(
+                        variant=variant,
+                        match_id=match_id,
+                        outcome=OUTCOME_MAP[outcome_raw],
+                    ))
 
-                SelectedOutcome.objects.bulk_create(outcome_objs, batch_size=10000)
+            # массовая вставка исходов
+            SelectedOutcome.objects.bulk_create(outcomes, batch_size=30000)
 
             # списываем баланс атомарно
             updated_rows = type(user).objects.filter(
                 id=user.id,
                 balance_cached__gte=total_amount
             ).update(balance_cached=F("balance_cached") - total_amount)
-
             if updated_rows != 1:
                 raise ValidationError("Недостаточно средств или баланс изменился.")
 
-            # обновляем пул фанатов
+            # обновляем фан-пул
             pool = FanPool.objects.first()
             if pool:
                 contribution = (total_amount * pool.percent / 100).quantize(Decimal("0.01"))
@@ -159,7 +146,7 @@ class PlaceBetView(APIView):
                     updated_at=timezone.now(),
                 )
 
-        # обновляем данные пользователя в памяти
+        # обновляем баланс в объекте пользователя
         user.refresh_from_db(fields=["balance_cached"])
 
         return Response({
