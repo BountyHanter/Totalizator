@@ -125,11 +125,10 @@ class PlaceBetView(APIView):
             # Генерация и вставка партиями
             for combo_batch in iter_combinations(grouped, batch_size=1000):
                 variant_batch = [BetVariant(coupon=coupon) for _ in combo_batch]
-                created_variants = BetVariant.objects.bulk_create(
-                    variant_batch,
-                    batch_size=1000,
-                    returning=True,  # type: ignore[arg-type]
-                )
+                BetVariant.objects.bulk_create(variant_batch, batch_size=1000)
+
+                # после вставки просто выбираем созданные варианты купона
+                created_variants = list(BetVariant.objects.filter(coupon=coupon).order_by("id"))
 
                 outcome_objs = []
                 for variant, combo in zip(created_variants, combo_batch):
