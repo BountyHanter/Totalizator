@@ -1,8 +1,10 @@
 from django import forms
 from django.contrib import admin
 from django.db.models import Prefetch
+from solo.admin import SingletonModelAdmin
 
 from games.models.bets import BetCoupon, BetVariant, SelectedOutcome
+from games.models.fanfool import FanPool
 from games.models.matchs import Match
 from games.models.payout import PayoutScheme
 from games.models.rounds import Round, RoundStats
@@ -135,3 +137,8 @@ class BiggestWinAdmin(admin.ModelAdmin):
         if obj:
             return self.change_view(request, str(obj.pk))
         return super().changelist_view(request, extra_context=extra_context)
+
+@admin.register(FanPool)
+class FanPoolAdmin(SingletonModelAdmin):
+    list_display = ("percent", "rounds_interval", "amount", "updated_at")
+    readonly_fields = ("updated_at",)
