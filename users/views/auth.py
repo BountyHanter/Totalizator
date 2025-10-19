@@ -4,7 +4,7 @@ from django.utils.timezone import localtime
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
-from django.contrib.auth import authenticate, login as auth_login, logout, get_user_model
+from django.contrib.auth import authenticate, get_user_model
 
 from config.utils.jwt_token import get_tokens_for_user
 from config.utils.logging_templates import log_warning, log_info

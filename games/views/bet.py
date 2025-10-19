@@ -1,6 +1,9 @@
 from itertools import product
 from decimal import Decimal
 
+from django.db import transaction
+from django.db.models import F, Q
+from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -9,7 +12,8 @@ from rest_framework.exceptions import ValidationError
 from games.models.payout import PayoutScheme
 from games.models.rounds import Round
 from games.models.bets import BetCoupon, BetVariant, SelectedOutcome
-from users.models.fanfool import FanPool
+from games.models.fanfool import FanPool
+from teams.models.teams import Team
 
 OUTCOME_MAP = {
     "1": SelectedOutcome.Outcome.WIN1,
@@ -17,6 +21,7 @@ OUTCOME_MAP = {
     "2": SelectedOutcome.Outcome.WIN2,
 }
 
+FANPOINTS_PERCENT = Decimal("1.00")
 
 class PlaceBetView(APIView):
     permission_classes = [IsAuthenticated]
@@ -36,7 +41,7 @@ class PlaceBetView(APIView):
 
         try:
             stake_per_variant = Decimal(stake_per_variant)
-        except:
+        except Exception:
             raise ValidationError("Ставка должна быть числом.")
 
         if stake_per_variant <= 0:
@@ -58,82 +63,102 @@ class PlaceBetView(APIView):
         if len(predictions) != 10:
             raise ValidationError("Необходимо выбрать исходы во всех 10 матчах.")
 
-        # Собираем матчи
+        # допустимые матчи
         valid_matches = set(round_obj.matches.values_list("id", flat=True))
-
         for match_id, outcomes in predictions.items():
             try:
                 match_id = int(match_id)
             except ValueError:
                 raise ValidationError(f"Некорректный match_id: {match_id}")
-
             if match_id not in valid_matches:
                 raise ValidationError(f"Матч {match_id} не относится к этому раунду.")
 
-        # строим комбинации
+        # группируем исходы
         grouped = []
         for match_id, outcomes in predictions.items():
             if not outcomes:
                 raise ValidationError(f"Матч {match_id}: нужно выбрать хотя бы один исход.")
-
             seen = set()
             valid = []
             for o in outcomes:
                 if o in OUTCOME_MAP and o not in seen:
                     valid.append(o)
                     seen.add(o)
-
             if not valid:
                 raise ValidationError(f"Матч {match_id}: некорректные исходы.")
-
             grouped.append([(int(match_id), outcome) for outcome in valid])
-        combinations = list(product(*grouped))
-        if not combinations:
-            raise ValidationError("Не удалось сформировать варианты ставок.")
 
-        num_variants = len(combinations)
+        # считаем количество комбинаций
+        num_variants = 1
+        for g in grouped:
+            num_variants *= len(g)
+        if num_variants > 10000:
+            raise ValidationError("Превышено максимальное число вариантов (10 000).")
+
         total_amount = stake_per_variant * num_variants
-
-        # проверяем баланс
         if user.balance_cached < total_amount:
             raise ValidationError("Недостаточно средств для ставки.")
 
-        # создаём купон
-        coupon = BetCoupon.objects.create(
-            user=user,
-            round=round_obj,
-            payout_scheme=scheme,
-            amount_total=total_amount,
-            num_variants=num_variants
-        )
+        # основная транзакция
+        with transaction.atomic():
+            coupon = BetCoupon.objects.create(
+                user=user,
+                round=round_obj,
+                payout_scheme=scheme,
+                amount_total=total_amount,
+                num_variants=num_variants,
+            )
 
-        # создаём варианты
-        variant_objs = [BetVariant(coupon=coupon) for _ in combinations]
-        BetVariant.objects.bulk_create(variant_objs)
+            # создаём все варианты одной пачкой
+            combinations = list(product(*grouped))
+            variants = [BetVariant(coupon=coupon) for _ in combinations]
+            BetVariant.objects.bulk_create(variants, batch_size=1000)
 
-        # получаем созданные варианты
-        variant_objs = list(BetVariant.objects.filter(coupon=coupon).order_by("id"))
+            # получаем созданные варианты по порядку
+            created_variants = list(BetVariant.objects.filter(coupon=coupon).order_by("id"))
 
-        # создаём исходы
-        outcome_objs = []
-        for variant, combo in zip(variant_objs, combinations):
-            for match_id, outcome_raw in combo:
-                outcome_objs.append(SelectedOutcome(
-                    variant=variant,
-                    match_id=match_id,
-                    outcome=OUTCOME_MAP[outcome_raw]
-                ))
-        SelectedOutcome.objects.bulk_create(outcome_objs)
+            # создаём все исходы
+            outcomes = []
+            for variant, combo in zip(created_variants, combinations):
+                for match_id, outcome_raw in combo:
+                    outcomes.append(SelectedOutcome(
+                        variant=variant,
+                        match_id=match_id,
+                        outcome=OUTCOME_MAP[outcome_raw],
+                    ))
 
-        # списываем баланс
-        user.balance_cached -= total_amount
-        user.save(update_fields=["balance_cached"])
+            # массовая вставка исходов
+            SelectedOutcome.objects.bulk_create(outcomes, batch_size=30000)
 
-        pool = FanPool.objects.first()
-        if pool:
-            contribution = (total_amount * pool.percent / 100).quantize(Decimal("0.01"))
-            pool.amount += contribution
-            pool.save(update_fields=["amount", "updated_at"])
+            # списываем баланс атомарно
+            updated_rows = type(user).objects.filter(
+                id=user.id,
+                balance_cached__gte=total_amount
+            ).update(balance_cached=F("balance_cached") - total_amount)
+            if updated_rows != 1:
+                raise ValidationError("Недостаточно средств или баланс изменился.")
+
+            # обновляем фан-пул
+            pool = FanPool.get_solo()
+            if pool:
+                contribution = (total_amount * pool.percent / 100).quantize(Decimal("0.01"))
+                FanPool.objects.filter(id=pool.id).update(
+                    amount=F("amount") + contribution,
+                    updated_at=timezone.now(),
+                )
+
+            # Добавляем фанпоинтс если команда участвует
+            favorite_team = user.favorite_team
+            if favorite_team:
+                team_plays = round_obj.matches.filter(
+                    Q(team1=favorite_team) | Q(team2=favorite_team)
+                ).exists()
+                if team_plays:
+                    points = (total_amount * FANPOINTS_PERCENT / 100).quantize(Decimal("0.01"))
+                    Team.objects.filter(id=favorite_team.id).update(fanpoints=F("fanpoints") + points)
+
+        # обновляем баланс в объекте пользователя
+        user.refresh_from_db(fields=["balance_cached"])
 
         return Response({
             "status": "ok",
