@@ -105,7 +105,7 @@ class AutoRegisterLoginAPIView(APIView):
 
 class RegisterAPIView(APIView):
     """
-    Ручная регистрация нового пользователя.
+    Ручная регистрация нового пользователя (JWT).
     """
     permission_classes = [AllowAny]
 
@@ -128,12 +128,20 @@ class RegisterAPIView(APIView):
             email=email,
         )
 
-        # Создаём токен
-        token, _ = Token.objects.get_or_create(user=user)
+        log_info(
+            action="Ручная регистрация",
+            message="Пользователь успешно зарегистрирован",
+            username=username,
+            user_id=user.id
+        )
 
+        # Создание JWT токенов
+        tokens = get_tokens_for_user(user)
+
+        # Ответ
         return Response({
             "status": "ok",
             "user_id": user.id,
             "username": user.username,
-            "token": token.key,
-        })
+            "tokens": tokens,
+        }, status=status.HTTP_201_CREATED)
