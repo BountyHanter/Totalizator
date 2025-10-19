@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rangefilter',
     "corsheaders",
+    'solo',
 
     "users.apps.UsersConfig",
     "teams.apps.TeamsConfig",
