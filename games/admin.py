@@ -3,7 +3,6 @@ from django.contrib import admin
 from django.db.models import Prefetch
 
 from games.models.bets import BetCoupon, BetVariant, SelectedOutcome
-# from games.models.jackpot import Jackpot
 from games.models.matchs import Match
 from games.models.payout import PayoutScheme
 from games.models.rounds import Round, RoundStats

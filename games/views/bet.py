@@ -2,7 +2,7 @@ from itertools import product
 from decimal import Decimal
 
 from django.db import transaction
-from django.db.models import F
+from django.db.models import F, Q
 from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -12,8 +12,8 @@ from rest_framework.exceptions import ValidationError
 from games.models.payout import PayoutScheme
 from games.models.rounds import Round
 from games.models.bets import BetCoupon, BetVariant, SelectedOutcome
-from users.models.fanfool import FanPool
-
+from games.models.fanfool import FanPool
+from teams.models.teams import Team
 
 OUTCOME_MAP = {
     "1": SelectedOutcome.Outcome.WIN1,
@@ -21,6 +21,7 @@ OUTCOME_MAP = {
     "2": SelectedOutcome.Outcome.WIN2,
 }
 
+FANPOINTS_PERCENT = Decimal("1.00")
 
 class PlaceBetView(APIView):
     permission_classes = [IsAuthenticated]
@@ -138,13 +139,23 @@ class PlaceBetView(APIView):
                 raise ValidationError("Недостаточно средств или баланс изменился.")
 
             # обновляем фан-пул
-            pool = FanPool.objects.first()
+            pool = FanPool.get_solo()
             if pool:
                 contribution = (total_amount * pool.percent / 100).quantize(Decimal("0.01"))
                 FanPool.objects.filter(id=pool.id).update(
                     amount=F("amount") + contribution,
                     updated_at=timezone.now(),
                 )
+
+            # Добавляем фанпоинтс если команда участвует
+            favorite_team = user.favorite_team
+            if favorite_team:
+                team_plays = round_obj.matches.filter(
+                    Q(team1=favorite_team) | Q(team2=favorite_team)
+                ).exists()
+                if team_plays:
+                    points = (total_amount * FANPOINTS_PERCENT / 100).quantize(Decimal("0.01"))
+                    Team.objects.filter(id=favorite_team.id).update(fanpoints=F("fanpoints") + points)
 
         # обновляем баланс в объекте пользователя
         user.refresh_from_db(fields=["balance_cached"])

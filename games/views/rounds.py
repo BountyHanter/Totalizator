@@ -1,6 +1,6 @@
 from django.db.models import QuerySet, Prefetch
 from rest_framework import status
-from rest_framework.exceptions import NotFound, PermissionDenied
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.generics import RetrieveAPIView, ListAPIView, get_object_or_404
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -196,3 +196,46 @@ class MyVariantsInRoundView(ListAPIView):
             )
         )
         return qs
+
+
+class MyVariantDetailView(APIView):
+    """
+    Возвращает детали выбранного варианта пользователя —
+    на какие исходы он поставил (актуально для незавершённого раунда).
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        variant_id = request.query_params.get("variant_id")
+        if not variant_id:
+            raise ValidationError("Не передан variant_id.")
+
+        try:
+            variant = (
+                BetVariant.objects
+                .select_related("coupon", "coupon__user", "coupon__round")
+                .get(id=variant_id, coupon__user=request.user)
+            )
+        except BetVariant.DoesNotExist:
+            raise NotFound("Вариант не найден или не принадлежит пользователю.")
+
+        # Список исходов по матчам
+        selected = (
+            SelectedOutcome.objects
+            .filter(variant=variant)
+            .select_related("match", "match__team1", "match__team2")
+            .values(
+                "match__id",
+                "match__team1__name",
+                "match__team2__name",
+                "outcome"
+            )
+        )
+
+        return Response({
+            "variant_id": variant.id,
+            "coupon_id": variant.coupon_id,
+            "round_id": variant.coupon.round_id,
+            "selected": list(selected)
+        })

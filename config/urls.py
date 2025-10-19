@@ -22,7 +22,7 @@ from config.utils.get_csrf import get_csrf_token
 from teams.views import TeamListView
 from users.views.auth import UserLoginAPIView, LogoutAPIView
 from users.views.color import ColorIntervalListView
-from users.views.register import AutoRegisterLoginAPIView
+from users.views.register import AutoRegisterLoginAPIView, RegisterAPIView
 from users.views.user_Info import UserProfileAPIView, FavoriteTeamUpdateView
 
 urlpatterns = [
@@ -31,14 +31,15 @@ urlpatterns = [
     path('api/v1/admin/', admin.site.urls),
     path('api/v1/auth/login/', UserLoginAPIView.as_view()),
     path('api/v1/auth/logout/', LogoutAPIView.as_view()),
-    path('api/v1/auth/register/', AutoRegisterLoginAPIView.as_view()),
+    path('api/v1/auth/auto-register/', AutoRegisterLoginAPIView.as_view()),
+    path ('api/v1/auth/register/', RegisterAPIView.as_view()),
 
     path('api/v1/csrf/', get_csrf_token),
     path('api/v1/', include([
         path('games/', include('games.urls')),
         path('profile/', UserProfileAPIView.as_view()),
 
-        path('favorite_team/', FavoriteTeamUpdateView.as_view()),
+        path('favorite-team/', FavoriteTeamUpdateView.as_view()),
 
         path('teams/', TeamListView.as_view()),
 

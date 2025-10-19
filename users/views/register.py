@@ -1,14 +1,15 @@
 import secrets
 import string
-from django.contrib.auth import login as auth_login
 from django.contrib.auth import get_user_model, authenticate
 from django.db import transaction
-from django.middleware.csrf import get_token
 from django.utils.timezone import localtime
 from rest_framework import status
 from rest_framework.permissions import AllowAny
-from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.exceptions import ValidationError
+from rest_framework.authtoken.models import Token
+
 
 from config.utils.jwt_token import get_tokens_for_user
 from config.utils.logging_templates import log_warning, log_info
@@ -101,3 +102,37 @@ class AutoRegisterLoginAPIView(APIView):
             },
             status=status.HTTP_201_CREATED
         )
+
+class RegisterAPIView(APIView):
+    """
+    Ручная регистрация нового пользователя.
+    """
+
+    def post(self, request):
+        username = request.data.get("username")
+        password = request.data.get("password")
+        email = request.data.get("email", "")
+
+        # Проверки
+        if not username or not password:
+            raise ValidationError("Необходимо указать username и password.")
+
+        if User.objects.filter(username=username).exists():
+            raise ValidationError("Пользователь с таким username уже существует.")
+
+        # Создание пользователя
+        user = User.objects.create_user(
+            username=username,
+            password=password,
+            email=email,
+        )
+
+        # Создаём токен
+        token, _ = Token.objects.get_or_create(user=user)
+
+        return Response({
+            "status": "ok",
+            "user_id": user.id,
+            "username": user.username,
+            "token": token.key,
+        })

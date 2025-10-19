@@ -20,6 +20,11 @@ class Team(models.Model):
         verbose_name="Аватар"
     )
 
+    fanpoints = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0,
+        help_text="Накопленные FanPoints команды за текущий цикл"
+    )
+
     def __str__(self):
         return self.name
 
