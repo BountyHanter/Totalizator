@@ -140,5 +140,4 @@ class BiggestWinAdmin(admin.ModelAdmin):
 
 @admin.register(FanPool)
 class FanPoolAdmin(SingletonModelAdmin):
-    list_display = ("percent", "rounds_interval", "amount", "updated_at")
-    readonly_fields = ("updated_at",)
+    list_display = ("percent", "rounds_interval", "amount")

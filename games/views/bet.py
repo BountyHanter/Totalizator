@@ -144,7 +144,6 @@ class PlaceBetView(APIView):
                 contribution = (total_amount * pool.percent / 100).quantize(Decimal("0.01"))
                 FanPool.objects.filter(id=pool.id).update(
                     amount=F("amount") + contribution,
-                    updated_at=timezone.now(),
                 )
 
             # Добавляем фанпоинтс если команда участвует
