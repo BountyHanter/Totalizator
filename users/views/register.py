@@ -107,6 +107,7 @@ class RegisterAPIView(APIView):
     """
     Ручная регистрация нового пользователя.
     """
+    permission_classes = [AllowAny]
 
     def post(self, request):
         username = request.data.get("username")
