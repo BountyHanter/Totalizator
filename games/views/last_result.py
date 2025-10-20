@@ -1,3 +1,4 @@
+from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 
@@ -16,16 +17,40 @@ class TeamStatsView(APIView):
       • последние 3 результата ("W", "D", "L")
     """
 
+    class TeamStatsView(APIView):
+        """
+        Возвращает текущую турнирную таблицу между началом последнего плей-оффа и текущим моментом.
+
+        Для каждой команды считает:
+          • количество сыгранных матчей
+          • победы, ничьи, поражения
+          • очки (3 / 1 / 0)
+          • последние 3 результата ("W", "D", "L")
+        """
+
     def get(self, request):
         # === 1️⃣ Находим последний начатый плей-офф ===
+        # Если хотя бы один плей-офф был запущен, берём его (по убыванию id)
         last_playoff = Playoff.objects.filter(started=True).order_by("-id").first()
-        start_round_id = last_playoff.start_round.id if last_playoff else 0
 
-        # === 2️⃣ Берём все матчи, сыгранные после старта этого плей-оффа ===
-        # Если плей-офф ни разу не запускался — берём все матчи.
-        matches = Match.objects.filter(round_id__gt=start_round_id)
+        # === 2️⃣ Определяем, с какого момента брать матчи ===
+        if last_playoff and last_playoff.start_round:
+            # Если найден начатый плей-офф — берём все матчи после стартового раунда этого плей-оффа
+            start_round_id = last_playoff.start_round.id
+            matches = Match.objects.filter(round_id__gt=start_round_id)
+        else:
+            # Если плей-оффов нет вообще — просто берём все сыгранные матчи
+            matches = Match.objects.all()
 
-        # === 3️⃣ Собираем статистику по командам ===
+        # === 3️⃣ Проверяем, есть ли вообще матчи для анализа ===
+        if not matches.exists():
+            # Возвращаем понятное сообщение, а не пустую таблицу
+            return Response(
+                {"detail": "Нет сыгранных матчей для расчёта статистики."},
+                status=status.HTTP_200_OK,
+            )
+
+        # === 4️⃣ Собираем статистику по каждой команде ===
         stats = {}
 
         for match in matches:
