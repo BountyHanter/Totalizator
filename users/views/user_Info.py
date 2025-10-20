@@ -11,11 +11,24 @@ User = get_user_model()  # Вот ключевой момент
 
 
 class UserSerializer(serializers.ModelSerializer):
+    favorite_team = serializers.SerializerMethodField()
+
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'date_joined',
-                  'last_login', 'is_staff', 'is_superuser', 'balance_cached', 'favorite_team']
+        fields = [
+            'id', 'username', 'email', 'first_name', 'last_name',
+            'date_joined', 'last_login', 'is_staff', 'is_superuser',
+            'balance_cached', 'favorite_team',
+        ]
 
+    def get_favorite_team(self, obj):
+        team = obj.favorite_team
+        if team:
+            return {
+                'id': team.id,
+                'name': team.name,
+            }
+        return None
 
 class UserProfileAPIView(APIView):
     permission_classes = [IsAuthenticated]  # Только для авторизованных пользователей
