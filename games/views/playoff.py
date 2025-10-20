@@ -1,5 +1,5 @@
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.exceptions import ValidationError
 
 from games.models.playoff import FanVote
@@ -47,6 +47,8 @@ class FanVoteCountView(APIView):
     Возвращает количество голосов за указанную стратегию в конкретном матче.
     """
 
+    permission_classes = [AllowAny]
+
     def get(self, request):
         match_id = request.query_params.get("match_id")
         strategy = request.query_params.get("strategy")
@@ -88,6 +90,7 @@ class PlayoffBracketView(APIView):
     стадии, матчи, участников и победителей.
     """
 
+    permission_classes = [AllowAny]
     def get(self, request):
         playoff = Playoff.objects.order_by("-created_at").first()
         if not playoff:
@@ -146,6 +149,8 @@ class NextPlayoffTimerView(APIView):
     """
     Возвращает время (в секундах) до следующего запуска плей-офф.
     """
+
+    permission_classes = [AllowAny]
 
     def get(self, request):
         pool = FanPool.get_solo()

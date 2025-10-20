@@ -1,3 +1,4 @@
+from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from teams.models.teams import Team
@@ -8,6 +9,8 @@ class FanPointsTableView(APIView):
     Таблица FanPoints — показывает текущие фанпоинты всех команд.
     Используется для формирования посева в плей-офф.
     """
+
+    permission_classes = [AllowAny]
 
     def get(self, request):
         # === 1️⃣ Загружаем все команды с их фанпоинтами ===
