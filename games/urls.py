@@ -2,6 +2,7 @@ from django.urls import path, include
 
 from games.views.bet import PlaceBetView
 from games.views.fanpoints import FanPointsTableView
+from games.views.fanpool import FanPoolAmountView
 from games.views.last_result import TeamStatsView
 from games.views.payout import PayoutSchemeListView
 from games.views.playoff import FanVoteView, FanVoteCountView, PlayoffBracketView, NextPlayoffTimerView
@@ -32,6 +33,8 @@ urlpatterns = [
     path('last-results/', TeamStatsView.as_view()),
 
     path('fan-points/', FanPointsTableView.as_view()),
+
+    path('fan-pool/', FanPoolAmountView.as_view()),
 
     path("playoff/", include([
         path("vote/", FanVoteView.as_view()),

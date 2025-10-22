@@ -94,7 +94,7 @@ class BetVariantSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = BetVariant
-        fields = ["position", "username", "bet_amount", "win_amount", "win_multiplier"]
+        fields = ["id", "position", "username", "bet_amount", "win_amount", "win_multiplier"]
 
     def get_bet_amount(self, obj):
         try:
