@@ -141,7 +141,7 @@ class PlaceBetView(APIView):
             # обновляем фан-пул
             pool = FanPool.get_solo()
             if pool:
-                contribution = (total_amount * pool.percent / 100).quantize(Decimal("0.01"))
+                contribution = (total_amount * pool.percent / 100).quantize(Decimal("0.0001"))
                 FanPool.objects.filter(id=pool.id).update(
                     amount=F("amount") + contribution,
                 )

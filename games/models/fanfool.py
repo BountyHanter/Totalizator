@@ -9,7 +9,7 @@ class FanPool(SingletonModel):
         help_text="Процент от всех ставок в раунде, идущий в фонд"
     )
     rounds_interval = models.PositiveIntegerField(default=1000, help_text="Каждые N раундов разыгрывать фонд")
-    amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, help_text="Текущая сумма фонда")
+    amount = models.DecimalField(max_digits=12, decimal_places=4, default=0.00, help_text="Текущая сумма фонда")
 
     def __str__(self):
         return f"FanPool: {self.amount} (каждые {self.rounds_interval} раундов)"
