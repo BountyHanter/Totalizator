@@ -1,3 +1,5 @@
+import hashlib
+import secrets
 import time
 import httpx
 import random
@@ -39,21 +41,36 @@ def generate_results_for_round(round_obj, force_outcome: str | None = None):
     """
     Ставит результаты всем матчам раунда.
     Если force_outcome указан — проставляет его во все матчи.
+    Иначе:
+      1. Берёт случайные исходы с random.org.
+      2. Генерирует server_seed.
+      3. Формирует commit-хэш = SHA256(seed + результаты).
+      4. Сохраняет result, seed, seed_hash в Match.
     """
     matches = list(Match.objects.filter(round=round_obj))
     if not matches:
         return
 
+    # 1️⃣ Получаем результаты (или фиксированные)
     if force_outcome:
-        # статический результат для тестов
         results = [force_outcome for _ in matches]
     else:
         try:
             results = _rnd_generate_results(len(matches))
         except Exception:
-            results = [random.choice([Match.Outcome.WIN_1, Match.Outcome.DRAW, Match.Outcome.WIN_2]) for _ in matches]
+            results = [random.choice([Match.Outcome.WIN_1, Match.Outcome.DRAW, Match.Outcome.WIN_2])
+                       for _ in matches]
 
+    # 2️⃣ Генерируем сид и хэш коммита
+    server_seed = secrets.token_hex(32)
+    joined_results = ",".join(results)
+    server_seed_hash = hashlib.sha256(f"{server_seed}:{joined_results}".encode()).hexdigest()
+
+    # 3️⃣ Проставляем данные в каждую запись
     for m, r in zip(matches, results):
         m.result = r
-    Match.objects.bulk_update(matches, ["result"])
+        m.server_seed = server_seed
+        m.server_seed_hash = server_seed_hash
 
+    # 4️⃣ Массовое сохранение
+    Match.objects.bulk_update(matches, ["result", "server_seed", "server_seed_hash"])

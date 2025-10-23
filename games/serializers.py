@@ -59,33 +59,41 @@ class TeamSerializer(serializers.ModelSerializer):
 class MatchSerializer(serializers.ModelSerializer):
     team1 = TeamSerializer()
     team2 = TeamSerializer()
+    server_seed_hash = serializers.SerializerMethodField()
+    server_seed = serializers.SerializerMethodField()
 
     class Meta:
         model = Match
-        fields = ["id", "team1", "team2"]
+        fields = [
+            "id",
+            "team1",
+            "team2",
+            "server_seed_hash",
+            "server_seed",
+        ]
 
+    def get_server_seed_hash(self, obj):
+        return obj.server_seed_hash
+
+    def get_server_seed(self, obj):
+        # доступ к родительскому round через obj.round
+        round_status = getattr(obj.round, "status", None)
+        if round_status == "finished":
+            return obj.server_seed
+        return None
 
 class RoundSerializer(serializers.ModelSerializer):
     matches = MatchSerializer(many=True, read_only=True)
-    # jackpot = serializers.SerializerMethodField()
 
     class Meta:
         model = Round
         fields = [
             "id",
             "status",
-            # "live_pool",
             "start_time",
             "selection_end_time",
             "matches",
-            # "jackpot",
         ]
-
-    # def get_jackpot(self, obj):
-    #     from games.models.jackpot import Jackpot
-    #     jp = Jackpot.objects.first()
-    #     return jp.amount if jp else None
-
 
 class BetVariantSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source="coupon.user.username")
