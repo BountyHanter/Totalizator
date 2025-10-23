@@ -23,7 +23,8 @@ class Round(models.Model):
         choices=Status.choices,
         default=Status.SELECTION
     )
-    game_hash = models.CharField(max_length=128, blank=True, null=True)
+    server_seed_hash = models.CharField(max_length=64)
+    server_seed = models.CharField(max_length=128, blank=True, null=True)
 
     def __str__(self):
         return f"Раунд {self.id}"

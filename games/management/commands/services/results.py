@@ -39,28 +39,36 @@ def _rnd_generate_results(n: int) -> List[str]:
 
 def generate_results_for_round(round_obj, force_outcome: str | None = None):
     """
-    Для каждого матча генерирует результат, seed и hash:
-      hash = sha256(seed + ':' + result)
+    Генерирует результаты для всех матчей раунда и формирует общий хэш честности:
+      hash = sha256(seed + ":" + joined_results)
     """
     matches = list(Match.objects.filter(round=round_obj))
     if not matches:
         return
 
-    # 1️⃣ Результаты
+    # 1️⃣ Генерация результатов
     if force_outcome:
         results = [force_outcome for _ in matches]
     else:
         try:
             results = _rnd_generate_results(len(matches))
         except Exception:
-            results = [random.choice([Match.Outcome.WIN_1, Match.Outcome.DRAW, Match.Outcome.WIN_2])
-                       for _ in matches]
+            results = [
+                random.choice([Match.Outcome.WIN_1, Match.Outcome.DRAW, Match.Outcome.WIN_2])
+                for _ in matches
+            ]
 
-    # 2️⃣ Генерируем хэш для каждого матча
+    # 2️⃣ Проставляем результаты матчам
     for m, r in zip(matches, results):
         m.result = r
-        m.server_seed = secrets.token_hex(32)
-        m.server_seed_hash = hashlib.sha256(f"{m.server_seed}:{r}".encode()).hexdigest()
+    Match.objects.bulk_update(matches, ["result"])
 
-    # 3️⃣ Сохраняем
-    Match.objects.bulk_update(matches, ["result", "server_seed", "server_seed_hash"])
+    # 3️⃣ Генерируем seed и общий хэш
+    server_seed = secrets.token_hex(32)
+    joined_results = ",".join(results)
+    server_seed_hash = hashlib.sha256(f"{server_seed}:{joined_results}".encode()).hexdigest()
+
+    # 4️⃣ Сохраняем сид и хэш в сам Round
+    round_obj.server_seed = server_seed
+    round_obj.server_seed_hash = server_seed_hash
+    round_obj.save(update_fields=["server_seed", "server_seed_hash"])

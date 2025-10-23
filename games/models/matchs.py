@@ -20,9 +20,6 @@ class Match(models.Model):
         null=True,
         help_text="Итоговый результат: '1', 'X' или '2'"
     )
-    server_seed_hash = models.CharField(max_length=64)
-    server_seed = models.CharField(max_length=128, blank=True, null=True)
-
 
     def __str__(self):
         return f"{self.team1} vs {self.team2} (Раунд {self.round.id})"

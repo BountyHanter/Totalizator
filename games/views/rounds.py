@@ -150,14 +150,26 @@ class RoundStatsView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request, pk):
-        round_obj = get_object_or_404(Round.objects.select_related("stats"), pk=pk)
+        round_obj = get_object_or_404(
+            Round.objects.select_related("stats"),
+            pk=pk
+        )
 
         if round_obj.status != Round.Status.FINISHED:
-            return Response({"status": "Раунд не завершён"}, status=status.HTTP_403_FORBIDDEN)
+            return Response(
+                {"status": "Раунд не завершён"},
+                status=status.HTTP_403_FORBIDDEN
+            )
 
         serializer = RoundStatsSerializer(round_obj.stats)
+
         return Response({
-            "round": {"id": round_obj.id, "status": round_obj.status},
+            "round": {
+                "id": round_obj.id,
+                "status": round_obj.status,
+                "server_seed_hash": round_obj.server_seed_hash,
+                "server_seed": round_obj.server_seed,
+            },
             **serializer.data
         })
 
@@ -220,10 +232,7 @@ class MyVariantDetailView(APIView):
         except BetVariant.DoesNotExist:
             raise NotFound("Вариант не найден или не принадлежит пользователю.")
 
-        # текущий раунд варианта
-        round_status = variant.coupon.round.status
-
-        # список исходов по матчам
+        # Список исходов по матчам
         selected = (
             SelectedOutcome.objects
             .filter(variant=variant)
@@ -232,30 +241,13 @@ class MyVariantDetailView(APIView):
                 "match__id",
                 "match__team1__name",
                 "match__team2__name",
-                "outcome",
-                "match__server_seed",
-                "match__server_seed_hash",
+                "outcome"
             )
         )
-
-        result_data = []
-        for s in selected:
-            result_data.append({
-                "match_id": s["match__id"],
-                "team1": s["match__team1__name"],
-                "team2": s["match__team2__name"],
-                "outcome": s["outcome"],
-                "server_seed_hash": s["match__server_seed_hash"],
-                "server_seed": (
-                    s["match__server_seed"]
-                    if round_status == "finished"
-                    else None
-                ),
-            })
 
         return Response({
             "variant_id": variant.id,
             "coupon_id": variant.coupon_id,
             "round_id": variant.coupon.round_id,
-            "selected": result_data,
+            "selected": list(selected)
         })
