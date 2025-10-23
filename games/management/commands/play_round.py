@@ -18,11 +18,11 @@ class Command(BaseCommand):
             return
 
         # 1) стадия ставок
+        generate_results_for_round(round_obj)
         start_selection(round_obj)
 
         # 2) стадия калькуляции
         start_calculation(round_obj)
-        generate_results_for_round(round_obj)
 
         # 3) пересчитали matched_count у всех вариантов
         recompute_matched_counts(round_obj)
