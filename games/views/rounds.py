@@ -220,7 +220,10 @@ class MyVariantDetailView(APIView):
         except BetVariant.DoesNotExist:
             raise NotFound("Вариант не найден или не принадлежит пользователю.")
 
-        # Список исходов по матчам
+        # текущий раунд варианта
+        round_status = variant.coupon.round.status
+
+        # список исходов по матчам
         selected = (
             SelectedOutcome.objects
             .filter(variant=variant)
@@ -229,13 +232,30 @@ class MyVariantDetailView(APIView):
                 "match__id",
                 "match__team1__name",
                 "match__team2__name",
-                "outcome"
+                "outcome",
+                "match__server_seed",
+                "match__server_seed_hash",
             )
         )
+
+        result_data = []
+        for s in selected:
+            result_data.append({
+                "match_id": s["match__id"],
+                "team1": s["match__team1__name"],
+                "team2": s["match__team2__name"],
+                "outcome": s["outcome"],
+                "server_seed_hash": s["match__server_seed_hash"],
+                "server_seed": (
+                    s["match__server_seed"]
+                    if round_status == "finished"
+                    else None
+                ),
+            })
 
         return Response({
             "variant_id": variant.id,
             "coupon_id": variant.coupon_id,
             "round_id": variant.coupon.round_id,
-            "selected": list(selected)
+            "selected": result_data,
         })
