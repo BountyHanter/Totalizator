@@ -5,7 +5,13 @@ from rest_framework.exceptions import ValidationError
 from games.models.playoff import FanVote
 
 
+
 class FanVoteView(APIView):
+    """
+    Пользователь голосует за свою команду в конкретном матче.
+    Один голос на матч.
+    """
+
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -25,22 +31,32 @@ class FanVoteView(APIView):
         if not fav_team:
             raise ValidationError("Сначала выберите любимую команду.")
 
-        # проверяем, участвует ли его команда в матче
+        # проверяем, участвует ли любимая команда
         if fav_team not in [match.team1, match.team2]:
             raise ValidationError("Ваша команда не участвует в этом матче.")
 
-        # создаём или обновляем голос
-        vote, created = FanVote.objects.update_or_create(
-            user=user, match=match,
-            defaults={"team": fav_team, "strategy": strategy}
+        # проверяем, голосовал ли уже
+        if FanVote.objects.filter(user=user, match=match).exists():
+            raise ValidationError("Вы уже голосовали в этом матче.")
+
+        # проверяем стратегию
+        valid_strategies = [choice[0] for choice in FanVote.Strategy.choices]
+        if strategy not in valid_strategies:
+            raise ValidationError(f"Недопустимая стратегия. Доступные: {', '.join(valid_strategies)}.")
+
+        # создаём голос
+        FanVote.objects.create(
+            user=user,
+            match=match,
+            team=fav_team,
+            strategy=strategy
         )
 
         return Response({
             "status": "ok",
-            "created": created,
-            "strategy": vote.strategy
+            "team": fav_team.name,
+            "strategy": strategy,
         })
-
 
 class FanVoteCountView(APIView):
     """
@@ -61,6 +77,17 @@ class FanVoteCountView(APIView):
         except PlayoffMatch.DoesNotExist:
             raise ValidationError("Матч не найден.")
 
+        # Проверяем корректность стратегии
+        valid_strategies = [choice[0] for choice in FanVote.Strategy.choices]
+        if strategy not in valid_strategies:
+            raise ValidationError({
+                "detail": f"Недопустимая стратегия '{strategy}'.",
+                "available_strategies": {
+                    key: label for key, label in FanVote.Strategy.choices
+                }
+            })
+
+        # Считаем количество голосов
         count = FanVote.objects.filter(match=match, strategy=strategy).count()
 
         return Response({
@@ -137,8 +164,6 @@ class PlayoffBracketView(APIView):
 
 
 from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.exceptions import NotFound
 from games.models.rounds import Round
 from games.models.fanfool import FanPool
 
@@ -170,3 +195,100 @@ class NextPlayoffTimerView(APIView):
 
         seconds_left = rounds_left * ROUND_DURATION
         return Response(seconds_left)
+
+
+from django.db.models import Q
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import NotFound
+from games.models.playoff import Playoff, PlayoffMatch
+
+
+
+
+class MyPlayoffMatchView(APIView):
+    """
+    Возвращает текущий матч (status=VOTING), где участвует любимая команда пользователя.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        favorite_team = getattr(user, "favorite_team", None)
+
+        if not favorite_team:
+            raise NotFound("У пользователя не указана любимая команда.")
+
+        # Находим последний активный или начатый плей-офф
+        playoff = (
+            Playoff.objects.filter(started=True, finished=False)
+            .order_by("-id")
+            .first()
+        )
+        if not playoff:
+            raise NotFound("Активный плей-офф не найден.")
+
+        # Ищем матч в стадии голосования (VOTING) с участием любимой команды
+        match = (
+            PlayoffMatch.objects
+            .filter(
+                playoff=playoff,
+                status=PlayoffMatch.Status.VOTING
+            )
+            .filter(Q(team1=favorite_team) | Q(team2=favorite_team))
+            .select_related("team1", "team2", "winner")
+            .first()
+        )
+
+        if not match:
+            raise NotFound("Ваша команда сейчас не участвует в голосовании плей-офф.")
+
+        return Response({
+            "id": match.id,
+            "stage_label": match.stage_label,
+            "status": match.status,
+            "team1": {
+                "id": match.team1.id,
+                "name": match.team1.name,
+                "avatar": match.team1.avatar_url,
+            } if match.team1 else None,
+            "team2": {
+                "id": match.team2.id if match.team2 else None,
+                "name": match.team2.name if match.team2 else None,
+                "avatar": match.team2.avatar_url if match.team2 else None,
+            } if match.team2 else None,
+            "favorite_team": {
+                "id": favorite_team.id,
+                "name": favorite_team.name,
+            },
+        })
+
+class MyVoteInMatchView(APIView):
+    """
+    Возвращает только выбор пользователя (FanVote) по конкретному матчу.
+    Требуется match_id в query параметре (?match_id=...).
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        match_id = request.query_params.get("match_id")
+
+        if not match_id:
+            raise ValidationError("Не передан match_id.")
+
+        try:
+            match = PlayoffMatch.objects.get(id=match_id)
+        except PlayoffMatch.DoesNotExist:
+            raise NotFound("Матч не найден.")
+
+        vote = FanVote.objects.filter(user=user, match=match).select_related("team").first()
+        if not vote:
+            raise NotFound("Пользователь ещё не голосовал в этом матче.")
+
+        return Response({
+            "strategy": vote.strategy,
+        })

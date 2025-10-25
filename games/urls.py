@@ -5,7 +5,8 @@ from games.views.fanpoints import FanPointsTableView
 from games.views.fanpool import FanPoolAmountView
 from games.views.last_result import TeamStatsView
 from games.views.payout import PayoutSchemeListView
-from games.views.playoff import FanVoteView, FanVoteCountView, PlayoffBracketView, NextPlayoffTimerView
+from games.views.playoff import FanVoteView, FanVoteCountView, PlayoffBracketView, NextPlayoffTimerView, \
+    MyPlayoffMatchView, MyVoteInMatchView
 from games.views.rounds import CurrentRoundView, RoundHistoryView, \
     LastBetVariantsView, RoundStatsView, MyVariantsInRoundView, MyVariantDetailView
 from games.views.wins import BiggestWinView, TopWinningVariantsView, MyWinCouponView
@@ -41,6 +42,8 @@ urlpatterns = [
         path("count/", FanVoteCountView.as_view()),
         path("bracket/", PlayoffBracketView.as_view()),
         path("timer/", NextPlayoffTimerView.as_view()),
+        path('match/', MyPlayoffMatchView.as_view()),
+        path('my-strategy/', MyVoteInMatchView.as_view()),
 
     ])),
 
