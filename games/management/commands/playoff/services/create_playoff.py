@@ -63,8 +63,11 @@ def stage2_create_playoff(ctx, stdout):
         label = f"{team1['name']} vs {team2['name']}" if team2 else f"{team1['name']} (автопроход)"
         stdout.write(f"Создан матч: {label}")
 
+    # ✅ Новое: первая стадия сразу в голосование
+    PlayoffMatch.objects.filter(playoff=playoff, stage_slots=stage_slots).update(status="VOTING")
+    stdout.write("🗳️ Первая стадия переведена в статус голосования (VOTING)\n")
+
     # Сброс FanPoints и фонда
-    Team.objects.update(fanpoints=0)
     Team.objects.update(fanpoints=0)
     pool.amount = 0
     pool.save(update_fields=["amount"])
