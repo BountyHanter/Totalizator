@@ -73,7 +73,7 @@ class Command(BaseCommand):
 
         stage_num = 1
         while True:
-            matches = list(PlayoffMatch.objects.filter(playoff=playoff, round_number=stage_num))
+            matches = list(PlayoffMatch.objects.filter(playoff=playoff, stage_slots=stage_num))
             if not matches:
                 self.stdout.write(f"✅ Нет матчей для стадии {stage_num}. Завершение турнира.\n")
                 break
