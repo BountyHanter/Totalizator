@@ -4,11 +4,11 @@ from games.management.commands.playoff.services.calculate_result import calculat
 from games.management.commands.playoff.services.checks import stage1_prepare
 from games.management.commands.playoff.services.create_playoff import stage2_create_playoff
 from games.management.commands.playoff.services.distribute import distribute_fanpool
-from games.models.playoff import PlayoffMatch, Playoff
+from games.models.playoff import Playoff, PlayoffMatch
 
 
 class Command(BaseCommand):
-    help = "Пошаговый цикл плей-офф с ожиданием подтверждения"
+    help = "Пошаговый цикл FanPool Playoff с очисткой незавершённых турниров"
 
     def cleanup_unfinished_playoffs(self):
         unfinished = Playoff.objects.filter(finished=False)
@@ -17,7 +17,7 @@ class Command(BaseCommand):
             self.stdout.write("🧹 Незавершённых турниров не найдено.\n")
             return
 
-        self.stdout.write(f"🧹 Найдено {unfinished.count()} незавершённых турниров. Завершаем их...")
+        self.stdout.write(f"🧹 Найдено {unfinished.count()} незавершённых турниров. Завершаем их...\n")
 
         for playoff in unfinished:
             matches = PlayoffMatch.objects.filter(playoff=playoff)
@@ -36,11 +36,10 @@ class Command(BaseCommand):
                 self.stdout.write(f"⚙️ Завершаем {active_matches.count()} активных матчей турнира #{playoff.id}...")
                 for m in active_matches:
                     if not m.winner:
-                        m.winner = m.team1 or m.team2  # подстраховка
+                        m.winner = m.team1 or m.team2
                     m.status = PlayoffMatch.Status.FINISHED
                     m.save(update_fields=["winner", "status"])
 
-            # определяем финального победителя
             last_match = matches.order_by("-id").first()
             playoff.winner = last_match.winner if last_match and last_match.winner else None
             playoff.finished = True
@@ -54,7 +53,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         self.stdout.write("🏁 Запуск пошагового цикла FanPool Playoff\n")
 
-        # === Очистка мусора ===
+        # === Очистка незавершённых турниров ===
         self.cleanup_unfinished_playoffs()
 
         input("▶ Нажми Enter, чтобы выполнить ЭТАП 1 (проверка и подготовка)...")
@@ -71,15 +70,21 @@ class Command(BaseCommand):
             return
         self.stdout.write(f"✅ Турнир #{playoff.id} успешно создан.\n")
 
-        stage_num = 1
-        while True:
-            matches = list(PlayoffMatch.objects.filter(playoff=playoff, stage_slots=stage_num))
+        # === Этап 3: стадии ===
+        first_stage = PlayoffMatch.objects.filter(playoff=playoff).order_by('-stage_slots').first()
+        if not first_stage:
+            self.stdout.write("❌ Не удалось определить первую стадию (нет матчей).")
+            return
+
+        stage_slots = first_stage.stage_slots
+        while stage_slots >= 1:
+            matches = list(PlayoffMatch.objects.filter(playoff=playoff, stage_slots=stage_slots))
             if not matches:
-                self.stdout.write(f"✅ Нет матчей для стадии {stage_num}. Завершение турнира.\n")
+                self.stdout.write(f"✅ Нет матчей для стадии {stage_slots}. Завершение турнира.\n")
                 break
 
-            self.stdout.write(f"\n⚔️  СТАДИЯ #{stage_num} — матчей: {len(matches)}")
-            input(f"▶ Нажми Enter, чтобы рассчитать результаты стадии #{stage_num}...")
+            self.stdout.write(f"\n⚔️  СТАДИЯ {stage_slots} → матчей: {len(matches)}")
+            input(f"▶ Нажми Enter, чтобы рассчитать результаты стадии {stage_slots}...")
 
             winners = []
             for match in matches:
@@ -97,7 +102,9 @@ class Command(BaseCommand):
                 self.stdout.write(f"\n🎉 Победитель турнира: {winners[0]}")
                 break
 
-            input(f"▶ Нажми Enter, чтобы сформировать следующую стадию ({len(winners)} команд)...")
+            next_stage = stage_slots // 2
+            input(f"▶ Нажми Enter, чтобы сформировать следующую стадию ({len(winners)} → {next_stage})...")
+
             with transaction.atomic():
                 for i in range(0, len(winners), 2):
                     team1 = winners[i]
@@ -105,14 +112,17 @@ class Command(BaseCommand):
                     is_bye = team2 is None
                     PlayoffMatch.objects.create(
                         playoff=playoff,
-                        round_number=stage_num + 1,
+                        stage_slots=next_stage,
+                        pair_index=i // 2 + 1,
                         team1=team1,
                         team2=team2,
                         is_bye=is_bye,
                         winner=team1 if is_bye else None,
                     )
-            stage_num += 1
 
+            stage_slots = next_stage
+
+        # === Этап 4: распределение фонда ===
         input("\n▶ Нажми Enter, чтобы выполнить ЭТАП 4 (распределение фонда)...")
         distribute_fanpool(playoff, stdout=self.stdout)
         self.stdout.write("✅ Плей-офф полностью завершён.\n")
