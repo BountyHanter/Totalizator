@@ -42,12 +42,15 @@ class PlayoffMatch(models.Model):
 
     @property
     def stage_label(self) -> str:
-        # красивое название стадии
-        if self.stage_slots == 2:
-            return "Финал"
-        if self.stage_slots == 4:
-            return "1/2"
-        return f"1/{self.stage_slots}"
+        """Красивое название стадии плей-офф"""
+        mapping = {
+            16: "1/16",
+            8: "1/8",
+            4: "1/4",
+            2: "1/2",
+            1: "Финал",
+        }
+        return mapping.get(self.stage_slots, f"1/{self.stage_slots}")
 
 
 
