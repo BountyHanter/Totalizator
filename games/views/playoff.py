@@ -118,6 +118,7 @@ class PlayoffBracketView(APIView):
     """
 
     permission_classes = [AllowAny]
+
     def get(self, request):
         playoff = Playoff.objects.order_by("-created_at").first()
         if not playoff:
@@ -127,7 +128,7 @@ class PlayoffBracketView(APIView):
             PlayoffMatch.objects
             .filter(playoff=playoff)
             .select_related("team1", "team2", "winner")
-            .order_by("round_number", "id")
+            .order_by("-stage_slots", "pair_index", "id")
         )
 
         if not matches.exists():
@@ -152,7 +153,6 @@ class PlayoffBracketView(APIView):
                 "is_bye": m.is_bye,
             })
 
-        # преобразуем в список по убыванию стадий (от 16 → 8 → 4 → 2)
         result = list(sorted(bracket.values(), key=lambda x: -x["stage_slots"]))
 
         return Response({
@@ -161,7 +161,6 @@ class PlayoffBracketView(APIView):
             "finished": playoff.finished,
             "stages": result
         })
-
 
 from rest_framework.views import APIView
 from games.models.rounds import Round
