@@ -12,30 +12,44 @@ class Command(BaseCommand):
 
     def cleanup_unfinished_playoffs(self):
         unfinished = Playoff.objects.filter(finished=False)
+
         if not unfinished.exists():
-            self.stdout.write("🧹 Незавершённых турниров не найдено.")
+            self.stdout.write("🧹 Незавершённых турниров не найдено.\n")
             return
 
         self.stdout.write(f"🧹 Найдено {unfinished.count()} незавершённых турниров. Завершаем их...")
 
         for playoff in unfinished:
-            matches = PlayoffMatch.objects.filter(playoff=playoff, status__in=[
+            matches = PlayoffMatch.objects.filter(playoff=playoff)
+            if not matches.exists():
+                self.stdout.write(f"⚠️ Турнир #{playoff.id} без матчей — просто помечаем завершённым.")
+                playoff.finished = True
+                playoff.save(update_fields=["finished"])
+                continue
+
+            active_matches = matches.filter(status__in=[
                 PlayoffMatch.Status.PENDING,
                 PlayoffMatch.Status.VOTING
             ])
-            for m in matches:
-                if not m.winner:
-                    # если победитель не определён, ставим победу первой команде (или None)
-                    m.winner = m.team1 or m.team2
-                m.status = PlayoffMatch.Status.FINISHED
-                m.save(update_fields=["winner", "status"])
 
+            if active_matches.exists():
+                self.stdout.write(f"⚙️ Завершаем {active_matches.count()} активных матчей турнира #{playoff.id}...")
+                for m in active_matches:
+                    if not m.winner:
+                        m.winner = m.team1 or m.team2  # подстраховка
+                    m.status = PlayoffMatch.Status.FINISHED
+                    m.save(update_fields=["winner", "status"])
+
+            # определяем финального победителя
+            last_match = matches.order_by("-id").first()
+            playoff.winner = last_match.winner if last_match and last_match.winner else None
             playoff.finished = True
-            if not playoff.winner and matches.exists():
-                playoff.winner = matches.last().winner
             playoff.save(update_fields=["winner", "finished"])
 
-        self.stdout.write("✅ Все незавершённые турниры и матчи были закрыты.\n")
+            winner_name = playoff.winner.name if playoff.winner else "не определён"
+            self.stdout.write(f"✅ Турнир #{playoff.id} закрыт. Победитель: {winner_name}")
+
+        self.stdout.write("✅ Все незавершённые турниры и матчи успешно закрыты.\n")
 
     def handle(self, *args, **options):
         self.stdout.write("🏁 Запуск пошагового цикла FanPool Playoff\n")
