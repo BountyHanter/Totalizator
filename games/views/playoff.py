@@ -146,13 +146,20 @@ class PlayoffBracketView(APIView):
 
             bracket[stage]["matches"].append({
                 "id": m.id,
-                "team1": m.team1.name if m.team1 else None,
-                "team2": m.team2.name if m.team2 else None,
+                "team1": {
+                    "id": m.team1.id if m.team1 else None,
+                    "name": m.team1.name if m.team1 else None,
+                    "avatar": m.team1.avatar_url if m.team1 else None,
+                } if m.team1 else None,
+                "team2": {
+                    "id": m.team2.id if m.team2 else None,
+                    "name": m.team2.name if m.team2 else None,
+                    "avatar": m.team2.avatar_url if m.team2 else None,
+                } if m.team2 else None,
                 "winner": m.winner.name if m.winner else None,
                 "status": m.status,
                 "is_bye": m.is_bye,
             })
-
         result = list(sorted(bracket.values(), key=lambda x: -x["stage_slots"]))
 
         return Response({
