@@ -30,7 +30,7 @@ def stage2_create_playoff(ctx, stdout):
         )
         Team.objects.filter(id=winner_id).update(fanpoints=0)
         pool.amount = 0
-        pool.save(update_fields=["amount", "updated_at"])
+        pool.save(update_fields=["amount"])
         stdout.write(f"🏆 Турнир завершён сразу: победитель — {teams[0]['name']}")
         return {"playoff": playoff, "matches": []}
 
@@ -65,10 +65,11 @@ def stage2_create_playoff(ctx, stdout):
 
     # Сброс FanPoints и фонда
     Team.objects.update(fanpoints=0)
+    Team.objects.update(fanpoints=0)
     pool.amount = 0
-    pool.save(update_fields=["amount", "updated_at"])
+    pool.save(update_fields=["amount"])
 
-    stdout.write(f"✅ Сгенерировано матчей: {len(pairs)}\n")
-    stdout.write(f"💰 Фонд {pool.amount} обнулён, фанпоинты сброшены\n")
+    stdout.write(f"✅ Сгенерировано матчей: {len(pairs)}")
+    stdout.write(f"\n💰 Фонд обнулён, фанпоинты сброшены\n")
 
     return {"playoff": playoff, "matches": pairs}
