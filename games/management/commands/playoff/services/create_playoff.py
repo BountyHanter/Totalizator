@@ -1,4 +1,5 @@
 from games.models.playoff import Playoff, PlayoffMatch
+from games.models.rounds import Round
 from teams.models.teams import Team
 
 def next_pow2(n: int) -> int:
@@ -34,7 +35,13 @@ def stage2_create_playoff(ctx, stdout):
         return {"playoff": playoff, "matches": []}
 
     stage_slots = next_pow2(num_teams)
-    playoff = Playoff.objects.create(total_amount=pool.amount, started=True)
+
+    start_round = Round.objects.get(id=ctx["current_round_id"])
+    playoff = Playoff.objects.create(
+        total_amount=pool.amount,
+        started=True,
+        start_round=start_round,  # ✅ теперь поле заполняется
+    )
 
     pairs = []
     for i in range(0, num_teams, 2):
