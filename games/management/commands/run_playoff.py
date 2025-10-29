@@ -58,14 +58,14 @@ class Command(BaseCommand):
         self.cleanup_unfinished_playoffs()
 
         # === Этап 1: проверка и подготовка ===
-        input("▶ Нажми Enter, чтобы выполнить ЭТАП 1 (проверка и подготовка)...")
+        #input("▶ Нажми Enter, чтобы выполнить ЭТАП 1 (проверка и подготовка)...")
         ctx = stage1_prepare(self.stdout)
         if not ctx:
             self.stdout.write("⏹ Этап 1 не пройден — выход.\n")
             return
 
         # === Этап 2: создание турнира ===
-        input("▶ Нажми Enter, чтобы выполнить ЭТАП 2 (создание турнира)...")
+        #input("▶ Нажми Enter, чтобы выполнить ЭТАП 2 (создание турнира)...")
         data = stage2_create_playoff(ctx, self.stdout)
         playoff = data.get("playoff")
         if not playoff:
@@ -88,7 +88,7 @@ class Command(BaseCommand):
                 break
 
             self.stdout.write(f"\n⚔️  СТАДИЯ {stage_slots} → матчей: {len(matches)}")
-            input(f"▶ Нажми Enter, чтобы рассчитать результаты стадии {stage_slots}...")
+            #input(f"▶ Нажми Enter, чтобы рассчитать результаты стадии {stage_slots}...")
 
             winners = []
             for match in matches:
@@ -109,7 +109,7 @@ class Command(BaseCommand):
 
             # Формируем следующую стадию
             next_stage = stage_slots // 2
-            input(f"▶ Нажми Enter, чтобы сформировать следующую стадию ({len(winners)} → {next_stage})...")
+            #input(f"▶ Нажми Enter, чтобы сформировать следующую стадию ({len(winners)} → {next_stage})...")
 
             with transaction.atomic():
                 for i in range(0, len(winners), 2):
@@ -133,6 +133,6 @@ class Command(BaseCommand):
             stage_slots = next_stage
 
         # === Этап 4: распределение фонда ===
-        input("\n▶ Нажми Enter, чтобы выполнить ЭТАП 4 (распределение фонда)...")
+        #input("\n▶ Нажми Enter, чтобы выполнить ЭТАП 4 (распределение фонда)...")
         distribute_fanpool(playoff, stdout=self.stdout)
         self.stdout.write("✅ Плей-офф полностью завершён.\n")
