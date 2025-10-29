@@ -21,7 +21,7 @@ def distribute_fanpool(playoff, prev_playoff=None, stdout=None):
             stdout.write(str(msg))
 
     pool = FanPool.get_solo()
-    if not pool or pool.amount <= 0:
+    if not pool or pool.checkpoint_amount <= 0:
         log("❗ FanPool пуст — распределять нечего.")
         return
 
@@ -39,7 +39,7 @@ def distribute_fanpool(playoff, prev_playoff=None, stdout=None):
     }
     percents = DISTRIBUTION_MAP.get(total_teams, [Decimal("100")])
 
-    total_amount = _q2(pool.amount)
+    total_amount = _q2(pool.checkpoint_amount)
 
     # === Заголовок розыгрыша
     log("════════════════════════════════════════════════════════════")
@@ -50,10 +50,6 @@ def distribute_fanpool(playoff, prev_playoff=None, stdout=None):
     log("════════════════════════════════════════════════════════════")
 
     with transaction.atomic():
-        # Обнулим пул сразу (по ТЗ фонд всегда разыгрывается)
-        pool.amount = Decimal("0.00")
-        pool.save(update_fields=["amount"])
-
         for idx, (team_id, percent) in enumerate(zip(winners, percents), start=1):
             team = Team.objects.get(id=team_id)
             team_reward = _q2(total_amount * percent / Decimal("100"))

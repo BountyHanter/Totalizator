@@ -29,8 +29,9 @@ def stage2_create_playoff(ctx, stdout):
             finished=True,
         )
         Team.objects.filter(id=winner_id).update(fanpoints=0)
+        pool.checkpoint_amount = pool.amount
         pool.amount = 0
-        pool.save(update_fields=["amount"])
+        pool.save(update_fields=["amount", 'checkpoint_amount'])
         stdout.write(f"🏆 Турнир завершён сразу: победитель — {teams[0]['name']}")
         return {"playoff": playoff, "matches": []}
 
