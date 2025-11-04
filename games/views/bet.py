@@ -47,6 +47,10 @@ class PlaceBetView(APIView):
         if stake_per_variant <= 0:
             raise ValidationError("Ставка на вариант должна быть положительной.")
 
+        # Поддержка очень маленьких ставок (например 0.1, 0.01, 0.001, ...).
+        # Округляем до 4 знаков после запятой для стабильности вычислений.
+        stake_per_variant = stake_per_variant.quantize(Decimal("0.0001"))
+
         # проверяем раунд
         try:
             round_obj = Round.objects.get(id=round_id, status=Round.Status.SELECTION)
@@ -95,7 +99,7 @@ class PlaceBetView(APIView):
         if num_variants > 10000:
             raise ValidationError("Превышено максимальное число вариантов (10 000).")
 
-        total_amount = stake_per_variant * num_variants
+        total_amount = (stake_per_variant * num_variants).quantize(Decimal("0.0001"))
         if user.balance_cached < total_amount:
             raise ValidationError("Недостаточно средств для ставки.")
 
